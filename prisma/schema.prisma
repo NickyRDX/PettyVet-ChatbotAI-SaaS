@@ -1,0 +1,177 @@
+// Prisma 7: la URL de Postgres vive en prisma.config.ts, no acá.
+// Cada tabla de negocio lleva clinica_id: así dos veterinarias no se mezclan.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum EstadoCita {
+  PROGRAMADA
+  CANCELADA
+  COMPLETADA
+  AUSENTE
+
+  @@map("estado_cita")
+}
+
+enum Urgencia {
+  NINGUNA
+  BAJA
+  ALTA
+  EMERGENCIA
+
+  @@map("urgencia")
+}
+
+enum DireccionMensaje {
+  ENTRANTE
+  SALIENTE
+
+  @@map("direccion_mensaje")
+}
+
+enum TipoMensaje {
+  TEXTO
+  AUDIO
+
+  @@map("tipo_mensaje")
+}
+
+model Clinica {
+  id                    String   @id @default(cuid())
+  nombre                String
+  zonaHoraria           String   @default("America/Argentina/Buenos_Aires") @map("zona_horaria")
+  duracionTurnoMinutos  Int      @default(30) @map("duracion_turno_minutos")
+  telefonoWhatsapp      String?  @map("telefono_whatsapp")
+  metaPhoneNumberId     String?  @unique @map("meta_phone_number_id")
+  createdAt             DateTime @default(now()) @map("creado_en") @db.Timestamptz
+  updatedAt             DateTime @updatedAt @map("actualizado_en") @db.Timestamptz
+
+  veterinarios   Veterinario[]
+  clientes       Cliente[]
+  conversaciones Conversacion[]
+  mensajes       Mensaje[]
+  citas          Cita[]
+  horarios       HorarioVeterinario[]
+
+  @@map("clinicas")
+}
+
+model Veterinario {
+  id        String   @id @default(cuid())
+  clinicaId String   @map("clinica_id")
+  nombre    String
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("creado_en") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("actualizado_en") @db.Timestamptz
+
+  clinica  Clinica              @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
+  horarios HorarioVeterinario[]
+  citas    Cita[]
+
+  @@index([clinicaId])
+  @@map("veterinarios")
+}
+
+/// diaSemana: 0 = domingo, 1 = lunes, ... 6 = sábado (igual que Date.getDay() en JavaScript).
+/// horaInicio / horaFin: texto "HH:mm" en hora local de la clínica, no UTC.
+model HorarioVeterinario {
+  id             String   @id @default(cuid())
+  clinicaId      String   @map("clinica_id")
+  veterinarioId  String   @map("veterinario_id")
+  diaSemana      Int      @map("dia_semana")
+  horaInicio     String   @map("hora_inicio") @db.Char(5)
+  horaFin        String   @map("hora_fin") @db.Char(5)
+  createdAt      DateTime @default(now()) @map("creado_en") @db.Timestamptz
+  updatedAt      DateTime @updatedAt @map("actualizado_en") @db.Timestamptz
+
+  clinica     Clinica     @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
+  veterinario Veterinario @relation(fields: [veterinarioId], references: [id], onDelete: Cascade)
+
+  @@index([veterinarioId, diaSemana])
+  @@index([clinicaId])
+  @@map("horarios_veterinario")
+}
+
+model Cliente {
+  id        String   @id @default(cuid())
+  clinicaId String   @map("clinica_id")
+  telefono  String
+  nombre    String?
+  createdAt DateTime @default(now()) @map("creado_en") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("actualizado_en") @db.Timestamptz
+
+  clinica        Clinica        @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
+  conversaciones Conversacion[]
+  citas          Cita[]
+
+  @@unique([clinicaId, telefono])
+  @@index([clinicaId])
+  @@map("clientes")
+}
+
+model Conversacion {
+  id        String   @id @default(cuid())
+  clinicaId String   @map("clinica_id")
+  clienteId String   @map("cliente_id")
+  createdAt DateTime @default(now()) @map("creado_en") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("actualizado_en") @db.Timestamptz
+
+  clinica Clinica  @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
+  cliente Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  mensajes Mensaje[]
+  citas    Cita[]
+
+  @@unique([clinicaId, clienteId])
+  @@index([clinicaId])
+  @@map("conversaciones")
+}
+
+model Mensaje {
+  id              String            @id @default(cuid())
+  clinicaId       String            @map("clinica_id")
+  conversacionId  String            @map("conversacion_id")
+  /// Id del mensaje en WhatsApp. Unico cuando existe (el simulador puede no tenerlo).
+  wamid           String?           @unique
+  direccion       DireccionMensaje
+  tipo            TipoMensaje       @default(TEXTO)
+  cuerpo          String
+  urgencia        Urgencia?
+  createdAt       DateTime          @default(now()) @map("creado_en") @db.Timestamptz
+
+  clinica      Clinica      @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
+  conversacion Conversacion @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
+
+  @@index([conversacionId, createdAt])
+  @@index([clinicaId])
+  @@map("mensajes")
+}
+
+model Cita {
+  id              String     @id @default(cuid())
+  clinicaId       String     @map("clinica_id")
+  veterinarioId   String     @map("veterinario_id")
+  clienteId       String     @map("cliente_id")
+  conversacionId  String?    @map("conversacion_id")
+  iniciaEn        DateTime   @map("inicia_en") @db.Timestamptz
+  terminaEn       DateTime   @map("termina_en") @db.Timestamptz
+  estado          EstadoCita @default(PROGRAMADA)
+  motivo          String?
+  createdAt       DateTime   @default(now()) @map("creado_en") @db.Timestamptz
+  updatedAt       DateTime   @updatedAt @map("actualizado_en") @db.Timestamptz
+
+  clinica      Clinica       @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
+  veterinario  Veterinario   @relation(fields: [veterinarioId], references: [id], onDelete: Restrict)
+  cliente      Cliente       @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+  conversacion Conversacion? @relation(fields: [conversacionId], references: [id], onDelete: SetNull)
+
+  @@unique([veterinarioId, iniciaEn])
+  @@index([clinicaId, iniciaEn])
+  @@index([clienteId])
+  @@map("citas")
+}
