@@ -1,3 +1,5 @@
+import type { WhatsAppWebhook } from "@/types/whatsapp";
+import { WhatsAppWebhookSchema } from "@/esquemas/whatsapp";
 export async function GET(req: Request) {
   // 1. Obtenemos los parámetros que vienen en la URL
   const { searchParams } = new URL(req.url);
@@ -5,7 +7,7 @@ export async function GET(req: Request) {
   // 2. Extraemos los datos que nos manda Meta
   const mode = searchParams.get("hub.mode");
   const verifyToken = searchParams.get("hub.verify_token");
-  const challenge  = searchParams.get("hub.challenge");
+  const challenge = searchParams.get("hub.challenge");
 
   // 3. Obtenemos nuestro token privado desde .env
   const token = process.env.WHATSAPP_VERIFY_TOKEN;
@@ -72,6 +74,56 @@ export async function GET(req: Request) {
     status: 200,
   });
 }
-// export async function POST(req : Request) {
-
-// }
+// Type --> describir
+// Zod --> validar
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    // const message = body.entry[0].changes[0].value.messages[0].text.body
+    // console.log("Mensaje recibido:", message)
+    const resultados = WhatsAppWebhookSchema.safeParse(body);
+    if (!resultados.success) {
+      return Response.json(
+        {
+          success: false,
+          message: "Payload de WhatsApp inválido",
+          errors: resultados.error.flatten(),
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+    const datosValidados: WhatsAppWebhook = resultados.data;
+    const mensaje = datosValidados.entry[0].changes[0].value.messages[0];
+    const telefono = mensaje.from;
+    const wamid = mensaje.id;
+    const texto = mensaje.text.body;
+    const telefonoNumeroId =
+      datosValidados.entry[0].changes[0].value.metadata.phone_number_id;
+    console.log(`Aquí tiene el telefono ${telefono} 
+      con el Wamid ${wamid} 
+      y el contenido del texto: ${texto} 
+      y el telefono numero id: ${telefonoNumeroId}`);
+    return Response.json(
+      {
+        success: true,
+        message: "Webhook procesado correctamente",
+      },
+      {
+        status: 200,
+      },
+    );
+  } catch (e: unknown) {
+    console.error("Error al procesar el webhook de WhatsApp", e);
+    return Response.json(
+      {
+        success: false,
+        message: "Error al procesar el webhook de WhatsApp",
+      },
+      {
+        status: 500,
+      },
+    );
+  }
+}
