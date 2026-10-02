@@ -163,7 +163,6 @@ export async function POST(req: Request) {
     // Ojo: `clientePrisma` NO cambia; sigue valiendo `null` si no existía.
     // El valor actualizado está solo en `cliente`.
     let cliente = clientePrisma;
-    console.log("cliente: ", cliente);
     // `!cliente` es true cuando `cliente` es `null` → el cliente no existe todavía.
     if (!cliente) {
       // Lo creamos en la base y guardamos el resultado en la MISMA variable `cliente`.
@@ -178,6 +177,34 @@ export async function POST(req: Request) {
         success: true,
         message: "Cliente creado correctamente",
         data: cliente
+      },
+      {
+        status: 201,
+      },
+    );
+    }
+    // Ahora que saber : Esa clínica y este cliente ya tienen una conversacion?
+    const conversacionPrisma = await prisma.conversacion.findUnique({
+      where: {
+        clinicaId_clienteId: {
+          clinicaId: clinicaPrisma.id,
+          clienteId: cliente.id,
+        }
+      }
+    })
+    // usamos un condicional para si existe una conversacion previa o no
+    let conversacion = conversacionPrisma
+    if (!conversacion) {
+      conversacion = await prisma.conversacion.create({
+        data: {
+          clinicaId: clinicaPrisma.id,
+          clienteId: cliente.id,
+        }
+      })
+      return Response.json({
+        success: true,
+        message: "Conversacion creada correctamente",
+        data: conversacion
       },
       {
         status: 201,
