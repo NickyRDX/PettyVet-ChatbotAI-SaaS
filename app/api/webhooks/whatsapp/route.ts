@@ -1,5 +1,7 @@
 import type { WhatsAppWebhook } from "@/types/whatsapp";
 import { WhatsAppWebhookSchema } from "@/esquemas/whatsapp";
+import { prisma } from "@/lib/db/prisma";
+import { Prisma } from "@/generated/prisma/client";
 export async function GET(req: Request) {
   // 1. Obtenemos los parámetros que vienen en la URL
   const { searchParams } = new URL(req.url);
@@ -95,20 +97,98 @@ export async function POST(req: Request) {
       );
     }
     const datosValidados: WhatsAppWebhook = resultados.data;
-    const mensaje = datosValidados.entry[0].changes[0].value.messages[0];
-    const telefono = mensaje.from;
-    const wamid = mensaje.id;
-    const texto = mensaje.text.body;
-    const telefonoNumeroId =
+    const mensajes = datosValidados.entry[0].changes[0].value.messages;
+    if (!mensajes || mensajes.length === 0) {
+      return Response.json(
+        {
+          success: true,
+          message: "Evento recibido sin mensajes para procesar",
+        },
+        {
+          status: 200,
+        },
+      );
+    }
+    const phoneNumberId =
       datosValidados.entry[0].changes[0].value.metadata.phone_number_id;
-    console.log(`Aquí tiene el telefono ${telefono} 
-      con el Wamid ${wamid} 
-      y el contenido del texto: ${texto} 
-      y el telefono numero id: ${telefonoNumeroId}`);
+    const clinicaPrisma = await prisma.clinica.findUnique({
+      where: {
+        metaPhoneNumberId: phoneNumberId,
+      },
+    });
+    console.log("clinicaPrisma", clinicaPrisma);
+    if (!clinicaPrisma) {
+      return Response.json(
+        {
+          success: false,
+          message: "Clínica no encontrada",
+        },
+        { status: 404 },
+      );
+    }
+    const telefonoFrom = mensajes[0].from;
+    console.log("telefono esta Aqui --->" , telefonoFrom);
+    if (!telefonoFrom || telefonoFrom.length === 0) {
+      return Response.json(
+        {
+          success: false,
+          message: "Telefono no se encuentra",
+        },
+        { status: 400 },
+      );
+    }
+    const clientePrisma = await prisma.cliente.findUnique({
+      where: {
+        clinicaId_telefono: {
+          clinicaId: clinicaPrisma.id,
+          telefono: telefonoFrom
+        }
+      }
+    })
+    // Patrón "buscar o crear": queremos terminar SIEMPRE con un cliente en mano.
+    //
+    // ¿Por qué `let` y no `const`?
+    // `const` no deja reasignar: una vez que la variable apunta a un valor, no se
+    // le puede poner otro (`cliente = ...` daría error). `let` sí deja reasignar.
+    // Acá la necesitamos porque `cliente` puede arrancar con un valor y terminar con otro:
+    //   - Si el cliente YA existía → `clientePrisma` es el objeto del cliente, y
+    //     `cliente` se queda con ese valor (el `if` no se ejecuta).
+    //   - Si NO existía → `findUnique` devolvió `null`, entonces `cliente` arranca
+    //     en `null`, entra al `if` y se REASIGNA con el cliente recién creado.
+    //
+    // Tipos: `clientePrisma` es `Cliente | null`, por eso `cliente` también lo es.
+    // Después del `if`, TypeScript sabe que `cliente` ya no puede ser `null`
+    // (o ya existía, o lo acabamos de crear), así que desde acá es `Cliente`.
+    //
+    // Ojo: `clientePrisma` NO cambia; sigue valiendo `null` si no existía.
+    // El valor actualizado está solo en `cliente`.
+    let cliente = clientePrisma;
+    console.log("cliente: ", cliente);
+    // `!cliente` es true cuando `cliente` es `null` → el cliente no existe todavía.
+    if (!cliente) {
+      // Lo creamos en la base y guardamos el resultado en la MISMA variable `cliente`.
+      // `await` espera a que Prisma termine de insertar y devuelva el registro creado.
+      cliente = await prisma.cliente.create({
+        data: {
+          clinicaId: clinicaPrisma.id,
+          telefono: telefonoFrom
+        }
+      })
+      return Response.json({
+        success: true,
+        message: "Cliente creado correctamente",
+        data: cliente
+      },
+      {
+        status: 201,
+      },
+    );
+    }
     return Response.json(
       {
         success: true,
-        message: "Webhook procesado correctamente",
+        message: "La petición se procesó correctamente.",
+        data: cliente,
       },
       {
         status: 200,
@@ -116,10 +196,20 @@ export async function POST(req: Request) {
     );
   } catch (e: unknown) {
     console.error("Error al procesar el webhook de WhatsApp", e);
+    if( e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002"){
+      return Response.json(
+        {
+          success: false,
+          message: "El telefono ya esta registrado",
+        },
+        { status: 409 },
+      );
+    }
     return Response.json(
       {
         success: false,
         message: "Error al procesar el webhook de WhatsApp",
+        error: e,
       },
       {
         status: 500,

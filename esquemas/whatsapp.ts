@@ -22,7 +22,7 @@ export const WhatsAppWebhookSchema = z.object({
               display_phone_number: z.string(),
               phone_number_id: z.string(),
             }),
-            messages: z.array(WhatsAppMessageSchema),
+            messages: z.array(WhatsAppMessageSchema).optional(),
           }),
         }),
       ),

@@ -19,7 +19,7 @@ export type WhatsAppWebhook = {
           display_phone_number: string;
           phone_number_id: string;
         };
-        messages: WhatsAppMessage[];
+        messages?: WhatsAppMessage[];
       };
     }[];
   }[];
