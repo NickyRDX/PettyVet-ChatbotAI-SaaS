@@ -127,7 +127,7 @@ export async function POST(req: Request) {
       );
     }
     const telefonoFrom = mensajes[0].from;
-    console.log("telefono esta Aqui --->" , telefonoFrom);
+    console.log("telefono esta Aqui --->", telefonoFrom);
     if (!telefonoFrom || telefonoFrom.length === 0) {
       return Response.json(
         {
@@ -141,10 +141,10 @@ export async function POST(req: Request) {
       where: {
         clinicaId_telefono: {
           clinicaId: clinicaPrisma.id,
-          telefono: telefonoFrom
-        }
-      }
-    })
+          telefono: telefonoFrom,
+        },
+      },
+    });
     // Patrón "buscar o crear": queremos terminar SIEMPRE con un cliente en mano.
     //
     // ¿Por qué `let` y no `const`?
@@ -170,18 +170,19 @@ export async function POST(req: Request) {
       cliente = await prisma.cliente.create({
         data: {
           clinicaId: clinicaPrisma.id,
-          telefono: telefonoFrom
-        }
-      })
-      return Response.json({
-        success: true,
-        message: "Cliente creado correctamente",
-        data: cliente
-      },
-      {
-        status: 201,
-      },
-    );
+          telefono: telefonoFrom,
+        },
+      });
+      return Response.json(
+        {
+          success: true,
+          message: "Cliente creado correctamente",
+          data: cliente,
+        },
+        {
+          status: 201,
+        },
+      );
     }
     // Ahora que saber : Esa clínica y este cliente ya tienen una conversacion?
     const conversacionPrisma = await prisma.conversacion.findUnique({
@@ -189,27 +190,28 @@ export async function POST(req: Request) {
         clinicaId_clienteId: {
           clinicaId: clinicaPrisma.id,
           clienteId: cliente.id,
-        }
-      }
-    })
+        },
+      },
+    });
     // usamos un condicional para si existe una conversacion previa o no
-    let conversacion = conversacionPrisma
+    let conversacion = conversacionPrisma;
     if (!conversacion) {
       conversacion = await prisma.conversacion.create({
         data: {
           clinicaId: clinicaPrisma.id,
           clienteId: cliente.id,
-        }
-      })
-      return Response.json({
-        success: true,
-        message: "Conversacion creada correctamente",
-        data: conversacion
-      },
-      {
-        status: 201,
-      },
-    );
+        },
+      });
+      return Response.json(
+        {
+          success: true,
+          message: "Conversacion creada correctamente",
+          data: conversacion,
+        },
+        {
+          status: 201,
+        },
+      );
     }
     return Response.json(
       {
@@ -223,7 +225,10 @@ export async function POST(req: Request) {
     );
   } catch (e: unknown) {
     console.error("Error al procesar el webhook de WhatsApp", e);
-    if( e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002"){
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
       return Response.json(
         {
           success: false,
