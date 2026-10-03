@@ -229,6 +229,7 @@ export async function POST(req: Request) {
       );
     }
     // switch para verificar el tipo de mensaje texto o audio
+    
     let mensajeTexto;
     switch (tipoCuerpo) {
       case "text":
@@ -270,7 +271,7 @@ export async function POST(req: Request) {
       {
         success: true,
         message: "La petición se procesó correctamente.",
-        data: cliente,
+        data: mensajeTexto,
       },
       {
         status: 200,
@@ -285,7 +286,7 @@ export async function POST(req: Request) {
       return Response.json(
         {
           success: false,
-          message: "El telefono ya esta registrado",
+          message: "wamid ya existente",
         },
         { status: 409 },
       );
