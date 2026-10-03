@@ -116,7 +116,6 @@ export async function POST(req: Request) {
         metaPhoneNumberId: phoneNumberId,
       },
     });
-    console.log("clinicaPrisma", clinicaPrisma);
     if (!clinicaPrisma) {
       return Response.json(
         {
@@ -127,7 +126,6 @@ export async function POST(req: Request) {
       );
     }
     const telefonoFrom = mensajes[0].from;
-    console.log("telefono esta Aqui --->", telefonoFrom);
     if (!telefonoFrom || telefonoFrom.length === 0) {
       return Response.json(
         {
@@ -212,6 +210,61 @@ export async function POST(req: Request) {
           status: 201,
         },
       );
+    }
+    // De todos los mensajes que recibí, agarrá el primero y guardalo en una variable llamada mensaje
+    const mensaje = mensajes[0];
+    // Si resulta que no encontré ningún mensaje...
+    const tipoCuerpo = mensaje.type;
+    const id = mensaje.id;
+    // comprobar si existe id
+    if (!id) {
+      return Response.json(
+        {
+          success: false,
+          message: "No se encontró el id del mensaje",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+    // switch para verificar el tipo de mensaje texto o audio
+    let mensajeTexto;
+    switch (tipoCuerpo) {
+      case "text":
+        const cuerpo = mensaje.text.body;
+        // si es texto, guardamos el mensaje en la base de datos
+        mensajeTexto = await prisma.mensaje.create({
+          data: {
+            clinicaId: clinicaPrisma.id,
+            conversacionId: conversacion.id,
+            wamid: id,
+            direccion: "ENTRANTE",
+            tipo: "TEXTO",
+            cuerpo: cuerpo,
+          },
+        });
+        break;
+      case "audio":
+        return Response.json(
+          {
+            success: false,
+            message: `Tipo de mensaje audio no soportado actualmente: ${tipoCuerpo}`,
+          },
+          {
+            status: 400,
+          },
+        );
+      default:
+        return Response.json(
+          {
+            success: false,
+            message: `Tipo de mensaje no soportado actualmente: ${tipoCuerpo}`,
+          },
+          {
+            status: 400,
+          },
+        );
     }
     return Response.json(
       {
