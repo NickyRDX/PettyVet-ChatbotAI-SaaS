@@ -1,6 +1,9 @@
 // importamos la libreria de google genai
-import { GoogleGenAI } from "@google/genai"
-import type { GenerarRespuestaIaInput, GenerarRespuestaIaOutput } from "@/interface/gemini.interface"
+import { GoogleGenAI, ApiError } from "@google/genai";
+import type {
+  GenerarRespuestaIaInput,
+  GenerarRespuestaIaOutput,
+} from "@/interface/gemini.interface";
 // importamos la Api key de google de forma segura
 //
 // ¿Qué es una API key?
@@ -17,28 +20,6 @@ import type { GenerarRespuestaIaInput, GenerarRespuestaIaOutput } from "@/interf
 // `.env.local` no existe la línea GEMINI_API_KEY=... (te olvidaste de ponerla,
 // la escribiste mal, o estás en Vercel y no la cargaste ahí).
 const GeminiApi = process.env.GEMINI_API_KEY;
-// Si no existe la api key, lanzamos un error
-//
-// ¿Qué es `throw`?
-// Es TIRAR DEL FRENO DE EMERGENCIA. El programa se detiene en esta línea y
-// no ejecuta nada de lo que viene abajo. `new Error("...")` es el CARTEL que
-// explica por qué frenó; ese texto es lo que vas a ver en la terminal.
-//
-// ¿Por qué querríamos que el programa se frene a propósito?
-// Pensá en salir de viaje sin nafta. Hay dos opciones:
-//   a) Te das cuenta en tu casa, antes de arrancar → "falta nafta", fácil.
-//   b) Te das cuenta en medio de la ruta → el auto se para y no sabés por qué.
-// Sin este `throw`, pasa la b): el código sigue, y recién cuando un cliente
-// manda un WhatsApp, Google responde algo confuso tipo "401 unauthorized" y
-// perdés media hora buscando el problema. Con el `throw` pasa la a): apenas
-// se carga este archivo, la terminal te dice EXACTAMENTE qué falta.
-//
-// Bonus de TypeScript: después de este `if`, TypeScript sabe que `GeminiApi`
-// ya no puede ser `undefined` (si lo fuera, el `throw` habría frenado todo).
-// Por eso abajo podés pasarlo a `apiKey` sin que el compilador se queje.
-if (!GeminiApi) {
-   throw new Error("GEMINI_API_KEY is not set");
-}
 // ¿Qué es `new`? (mismo concepto que `new Response(...)` en el webhook)
 // `GoogleGenAI` es un MOLDE, como el molde de una llave en la cerrajería.
 // El molde solo no abre nada. `new` le dice al cerrajero: "fabricame una
@@ -58,8 +39,91 @@ if (!GeminiApi) {
 //   console.log(respuesta.text)
 // Lo fabricás UNA sola vez acá y lo reusás en todo el proyecto, igual que
 // `prisma` en lib/db/prisma.ts. No hace falta fabricar uno nuevo por mensaje.
-const ai = new GoogleGenAI({ apiKey: GeminiApi })
+if (!GeminiApi) {
+  // Si no existe la api key, lanzamos un error
+  //
+  // ¿Qué es `throw`?
+  // Es TIRAR DEL FRENO DE EMERGENCIA. El programa se detiene en esta línea y
+  // no ejecuta nada de lo que viene abajo. `new Error("...")` es el CARTEL que
+  // explica por qué frenó; ese texto es lo que vas a ver en la terminal.
+  //
+  // ¿Por qué querríamos que el programa se frene a propósito?
+  // Pensá en salir de viaje sin nafta. Hay dos opciones:
+  //   a) Te das cuenta en tu casa, antes de arrancar → "falta nafta", fácil.
+  //   b) Te das cuenta en medio de la ruta → el auto se para y no sabés por qué.
+  // Sin este `throw`, pasa la b): el código sigue, y recién cuando un cliente
+  // manda un WhatsApp, Google responde algo confuso tipo "401 unauthorized" y
+  // perdés media hora buscando el problema. Con el `throw` pasa la a): apenas
+  // se carga este archivo, la terminal te dice EXACTAMENTE qué falta.
+  //
+  // Bonus de TypeScript: después de este `if`, TypeScript sabe que `GeminiApi`
+  // ya no puede ser `undefined` (si lo fuera, el `throw` habría frenado todo).
+  // Por eso abajo podés pasarlo a `apiKey` sin que el compilador se queje.
+  throw new Error("GEMINI_API_KEY is not set");
+}
+const ai = new GoogleGenAI({ apiKey: GeminiApi });
+const MODELOS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash"];
+/* Es una función flecha (arrow function). Recibe un número ms (milisegundos) y devuelve lo que está después de la flecha. 1000 ms equivalen a 1 segundo.
 
-async function generateRespuestaIA() {
-   
+Entrada: ms, un número. Por ejemplo, 2000.
+Salida: una Promise, es decir, una promesa que se cumple después de ese tiempo.
+setTimeout(r, ms)
+
+Es una función de JavaScript que dice "dentro de ms milisegundos, ejecutá r". Es como poner un temporizador en la cocina.
+
+new Promise((r) => ...)
+
+Una Promise es un objeto que representa algo que todavía no terminó pero va a terminar. Cuando creás una promesa, JavaScript te da una función (acá la llamamos r, de resolve) que tenés que llamar cuando el trabajo esté listo.
+
+Si juntás todo: creás una promesa y le pasás r al temporizador. Cuando el temporizador suena, llama a r() y la promesa queda cumplida. */
+const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/* async: la función hace cosas que tardan (hablar con Google, esperar), así que adentro podés usar await y siempre devuelve una Promise.
+model: string: qué modelo usar, por ejemplo "gemini-3.8-flash". Lo recibe como parámetro en vez de tenerlo fijo para poder reusar la función con distintos modelos en el paso 4.
+contents: string: el mensaje del cliente.
+intentos = 3: un parámetro con valor por defecto. Si lo llamás llamarConReintentos("x", "hola"), intentos vale 3. Si lo llamás llamarConReintentos("x", "hola", 5), vale 5. TypeScript deduce solo que es un number.
+Entrada: modelo, mensaje y cantidad de intentos. Salida: la respuesta de Gemini, o un error si no hubo forma de conseguirla. */
+async function llamarConRetry(model: string, contents: string, intentos = 3) {
+  /* El bucle: Un for clásico. Con intentos = 3, i va a valer 0, 1 y 2, o sea, tres vueltas como máximo. i es el número de intento actual, empezando a contar desde cero.
+  ¿Por qué "como máximo"? Porque adentro hay un return y un throw, y cualquiera de los dos corta el bucle y sale de la función en el acto. */
+  for (let i = 0; i < intentos; i++) {
+    /* El intento: try { ... }: "intentá hacer esto; si explota, saltá al catch". */
+    try {
+      /* await ai.models.generateContent(...): le pregunta a Gemini y espera la respuesta.
+      { model, contents }: es una abreviatura de { model: model, contents: contents }. Cuando la variable se llama igual que la propiedad, JavaScript te deja escribirla una sola vez.
+      return: si Google respondió bien, devolvemos la respuesta y la función termina. No hay más vueltas. Este es el camino feliz. */
+      return await ai.models.generateContent({ model, contents });
+    } catch (e) {
+      /* e instanceof ApiError: "¿este error es un error oficial de la API de Google?". Puede no serlo; por ejemplo, si se cortó tu internet, el error es otro tipo de objeto. 
+      && ("y"): solo se evalúa lo de la derecha si lo de la izquierda es verdadero. Esto es clave: si e no es un ApiError, no tiene .status, y gracias al && nunca llegamos a preguntarlo.
+      (e.status === 503 || e.status === 429): "¿el código es 503 o 429?".
+      Resultado: esTemporal es un booleano (true o false).
+      */
+      const esTemporal =
+        e instanceof ApiError && (e.status === 503 || e.status === 429);
+      /* ¿Me quedan intentos después de este? Con intentos = 3:
+      En i = 0 hace 0 < 2, o sea true: quedan intentos.
+      En i = 1 hace 1 < 2, o sea true: quedan intentos.
+      En i = 2 hace 2 < 2, o sea false: era el último.
+      ¿Por qué intentos - 1? Porque i empieza en 0, así que el último intento es el 2, no el 3. Es el clásico error "off by one" (pasarse por uno), uno de los bugs más comunes en programación. Vale la pena que lo verifiques siempre a mano como hicimos acá. */
+      const menosIntentos = i < intentos - 1;
+      /* Si el error no es temporal o no me quedan intentos, lo lanzamos y salimos. */
+      if (!esTemporal || !menosIntentos) throw e;
+      await esperar(1000 * 2 ** i);
+    }
+  }
+  throw new Error("Sin Intentos");
+}
+
+export async function generateRespuestaIA(
+  input: GenerarRespuestaIaInput,
+): Promise<GenerarRespuestaIaOutput> {
+  for (const modelo of MODELOS){
+    try {
+      const response = await llamarConRetry(modelo, input.mensaje);
+      if(response.text) return {texto: response.text}
+    } catch (e) {
+      console.warn(`Error en el modelo ${modelo}:`, e);
+    }
+  }
+  throw new Error("No se pudo generar la respuesta de la IA");
 }

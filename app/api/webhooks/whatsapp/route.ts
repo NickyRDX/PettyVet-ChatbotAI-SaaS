@@ -2,6 +2,7 @@ import type { WhatsAppWebhook } from "@/types/whatsapp";
 import { WhatsAppWebhookSchema } from "@/esquemas/whatsapp";
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
+import { generateRespuestaIA } from "@/lib/ai/gemini";
 export async function GET(req: Request) {
   // 1. Obtenemos los parámetros que vienen en la URL
   const { searchParams } = new URL(req.url);
@@ -267,6 +268,9 @@ export async function POST(req: Request) {
           },
         );
     }
+    console.log("mensaje: ", mensajeTexto.cuerpo)
+    const respuestaIA = await generateRespuestaIA({mensaje: mensajeTexto.cuerpo})
+    console.log("respuestaIA: ", respuestaIA)
     return Response.json(
       {
         success: true,
