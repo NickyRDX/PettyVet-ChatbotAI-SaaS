@@ -3,6 +3,7 @@ import { WhatsAppWebhookSchema } from "@/esquemas/whatsapp";
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { generateRespuestaIA } from "@/lib/ai/gemini";
+import {sendMessageWhatsapp} from '@/lib/whatsapp/send'
 export async function GET(req: Request) {
   // 1. Obtenemos los parámetros que vienen en la URL
   const { searchParams } = new URL(req.url);
@@ -250,7 +251,22 @@ export async function POST(req: Request) {
     }
     console.log("mensaje: ", mensajeTexto.cuerpo)
     const respuestaIA = await generateRespuestaIA({mensaje: mensajeTexto.cuerpo})
-    console.log("respuestaIA: ", respuestaIA)
+    const envioWhatsapp = await sendMessageWhatsapp({
+      phoneNumberId: phoneNumberId,
+      to: telefonoFrom,
+      texto: respuestaIA.texto
+    })
+    const mensajeSalida = await prisma.mensaje.create({
+      data: {
+        clinicaId: clinicaPrisma.id,
+        conversacionId: conversacion.id,
+        cuerpo: respuestaIA.texto,
+        direccion: "SALIENTE",
+        wamid: envioWhatsapp.wamid,
+        tipo: "TEXTO"
+      }
+    })
+    console.log("mensajeSalida: ", mensajeSalida)
     return Response.json(
       {
         success: true,
