@@ -172,16 +172,6 @@ export async function POST(req: Request) {
           telefono: telefonoFrom,
         },
       });
-      return Response.json(
-        {
-          success: true,
-          message: "Cliente creado correctamente",
-          data: cliente,
-        },
-        {
-          status: 201,
-        },
-      );
     }
     // Ahora que saber : Esa clínica y este cliente ya tienen una conversacion?
     const conversacionPrisma = await prisma.conversacion.findUnique({
@@ -201,16 +191,6 @@ export async function POST(req: Request) {
           clienteId: cliente.id,
         },
       });
-      return Response.json(
-        {
-          success: true,
-          message: "Conversacion creada correctamente",
-          data: conversacion,
-        },
-        {
-          status: 201,
-        },
-      );
     }
     // De todos los mensajes que recibí, agarrá el primero y guardalo en una variable llamada mensaje
     const mensaje = mensajes[0];
