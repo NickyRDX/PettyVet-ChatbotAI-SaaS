@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
-export async function GET(r: Request, { params }: { params: Promise<{ id: string, nombre: string}> }) {
+export async function GET(r: Request, { params }: { params: Promise<{ id: string}> }) {
   console.log(r)
   try {
     const { id } = await params;
