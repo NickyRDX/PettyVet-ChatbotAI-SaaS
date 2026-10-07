@@ -1,12 +1,11 @@
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import Navbar from "./components/landing/Navbar/Navbar";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Button className='p-5 text-lg font-bold rounded-2xl cursor-pointer'>Click me</Button>
-      </main>
-    </div>
+    <main className="flex flex-col">
+      <Navbar/>
+    </main>
   );
 }
