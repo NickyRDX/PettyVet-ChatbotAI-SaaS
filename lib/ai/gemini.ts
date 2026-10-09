@@ -62,7 +62,7 @@ if (!GeminiApi) {
   throw new Error("GEMINI_API_KEY is not set");
 }
 const ai = new GoogleGenAI({ apiKey: GeminiApi });
-const MODELOS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash"];
+const MODELOS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"];
 /* Es una función flecha (arrow function). Recibe un número ms (milisegundos) y devuelve lo que está después de la flecha. 1000 ms equivalen a 1 segundo.
 
 Entrada: ms, un número. Por ejemplo, 2000.
@@ -82,7 +82,7 @@ model: string: qué modelo usar, por ejemplo "gemini-3.8-flash". Lo recibe como 
 contents: string: el mensaje del cliente.
 intentos = 3: un parámetro con valor por defecto. Si lo llamás llamarConReintentos("x", "hola"), intentos vale 3. Si lo llamás llamarConReintentos("x", "hola", 5), vale 5. TypeScript deduce solo que es un number.
 Entrada: modelo, mensaje y cantidad de intentos. Salida: la respuesta de Gemini, o un error si no hubo forma de conseguirla. */
-async function llamarConRetry(model: string, contents: string, intentos = 3) {
+async function llamarConRetry(model: string, contents: string, intentos = 5) {
   /* El bucle: Un for clásico. Con intentos = 3, i va a valer 0, 1 y 2, o sea, tres vueltas como máximo. i es el número de intento actual, empezando a contar desde cero.
   ¿Por qué "como máximo"? Porque adentro hay un return y un throw, y cualquiera de los dos corta el bucle y sale de la función en el acto. */
   for (let i = 0; i < intentos; i++) {

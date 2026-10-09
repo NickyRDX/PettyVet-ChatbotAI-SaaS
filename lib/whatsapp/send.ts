@@ -1,5 +1,5 @@
 import type { SendMessageWhatsappInput, SendMessageWhatsappOutput } from "@/interface/send.interface";
-
+import { formatearNumero } from "./formatear";
 const whatsappAccessToken = process.env.WHATSAPP_ACCESS_TOKEN;
 const whatsappApiVersion = process.env.WHATSAPP_API_VERSION;
 // Validamos que la API key y la API version estén definidas
@@ -13,7 +13,7 @@ export async function sendMessageWhatsapp(input: SendMessageWhatsappInput): Prom
    const url = `https://graph.facebook.com/${whatsappApiVersion}/${input.phoneNumberId}/messages`;
    const body = {
       messaging_product: "whatsapp",
-      to: input.to,
+      to: formatearNumero(input.to),
       type: "text",
       text: {
          body: input.texto
