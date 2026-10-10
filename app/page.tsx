@@ -1,11 +1,11 @@
-import { Button } from "@/components/ui/button";
-import Image from "next/image";
-import Navbar from "./components/landing/Navbar/Navbar";
+"use client";
+import React from "react";
+import LandingPage from "./landing/page";
 
 export default function Home() {
   return (
-    <main className="flex flex-col">
-      <Navbar/>
-    </main>
+    <>
+      <LandingPage />
+    </>
   );
 }

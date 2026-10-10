@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const InterSans = Inter({
+  variable: "--font-inter-sans",
   subsets: ["latin"],
 });
 
@@ -16,7 +16,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} h-full antialiased`}
+      className={`${InterSans.variable} h-full antialiased`}
+      style={{ scrollBehavior: "smooth" }}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
