@@ -7,6 +7,7 @@ import MxPlayer from "@/public/mx-player.svg";
 import Check from "@/public/check.svg";
 import React from "react";
 import Mockup from "../Mockup/Mockup";
+import Paleta from "../Seccion-two/Paleta";
 
 export default function HeroSection() {
   return (
@@ -93,6 +94,8 @@ export default function HeroSection() {
           </div>
           <Mockup />
         </section>
+        {/* Section 2 Paleta */}
+        <Paleta/>
       </div>
     </main>
   );
