@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { generateRespuestaIA } from "@/lib/ai/gemini";
 import { sendMessageWhatsapp } from '@/lib/whatsapp/send'
+import { firmarMensaje } from "@/lib/whatsapp/firma";
 import { getInstrucciones } from "@/lib/ai/instrucciones";
 export async function GET(req: Request) {
   // 1. Obtenemos los parámetros que vienen en la URL
@@ -83,9 +84,22 @@ export async function GET(req: Request) {
 // Zod --> validar
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    // const message = body.entry[0].changes[0].value.messages[0].text.body
-    // console.log("Mensaje recibido:", message)
+    const bodyCrudo = await req.text();
+    const headerFirma = req.headers.get("x-hub-signature-256")
+    if (
+      !firmarMensaje(bodyCrudo, headerFirma, process.env.WHATSAPP_APP_SECRET)
+    ) {
+      return Response.json(
+        {
+          success: false,
+          message: "Firma de mensaje inválida",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+    const body = JSON.parse(bodyCrudo);
     const resultados = WhatsAppWebhookSchema.safeParse(body);
     if (!resultados.success) {
       return Response.json(
