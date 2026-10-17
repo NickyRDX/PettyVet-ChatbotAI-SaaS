@@ -120,7 +120,9 @@ export async function generateRespuestaIA(
   for (const modelo of MODELOS){
     try {
       const response = await llamarConRetry(modelo, input.mensaje);
-      if(response.text) return {texto: response.text}
+      const tokenInput = response.usageMetadata?.promptTokenCount ?? 0;
+      const tokenOutput = response.usageMetadata?.candidatesTokenCount ?? 0;
+      if(response.text) return {texto: response.text, tokenEntrada: tokenInput, tokenSalida: tokenOutput}
     } catch (e) {
       console.warn(`Error en el modelo ${modelo}:`, e);
     }

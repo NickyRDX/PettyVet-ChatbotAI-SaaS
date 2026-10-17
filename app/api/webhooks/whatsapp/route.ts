@@ -272,7 +272,10 @@ export async function POST(req: Request) {
       conversacionPrevia: "",
     })
     const respuestaIA = await generateRespuestaIA({ mensaje: instrucciones })
-    console.log("respuesta de gemini: ", respuestaIA)
+    console.log(
+      "Tokens de entrada: ", respuestaIA.tokenEntrada,
+      "Tokens de salida: ", respuestaIA.tokenSalida
+    )
     const envioWhatsapp = await sendMessageWhatsapp({
       phoneNumberId: phoneNumberId,
       to: telefonoFrom,
