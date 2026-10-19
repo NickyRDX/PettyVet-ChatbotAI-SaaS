@@ -4,6 +4,7 @@ import type {
   GenerarRespuestaIaInput,
   GenerarRespuestaIaOutput,
 } from "@/interface/gemini.interface";
+const MAXIMO_TOKENS_SALIDA = 500;
 // importamos la Api key de google de forma segura
 //
 // ¿Qué es una API key?
@@ -91,7 +92,11 @@ async function llamarConRetry(model: string, contents: string, intentos = 5) {
       /* await ai.models.generateContent(...): le pregunta a Gemini y espera la respuesta.
       { model, contents }: es una abreviatura de { model: model, contents: contents }. Cuando la variable se llama igual que la propiedad, JavaScript te deja escribirla una sola vez.
       return: si Google respondió bien, devolvemos la respuesta y la función termina. No hay más vueltas. Este es el camino feliz. */
-      return await ai.models.generateContent({ model, contents });
+      return await ai.models.generateContent({
+        model,
+        contents,
+        config: { maxOutputTokens: MAXIMO_TOKENS_SALIDA },
+      });
     } catch (e) {
       /* e instanceof ApiError: "¿este error es un error oficial de la API de Google?". Puede no serlo; por ejemplo, si se cortó tu internet, el error es otro tipo de objeto. 
       && ("y"): solo se evalúa lo de la derecha si lo de la izquierda es verdadero. Esto es clave: si e no es un ApiError, no tiene .status, y gracias al && nunca llegamos a preguntarlo.
