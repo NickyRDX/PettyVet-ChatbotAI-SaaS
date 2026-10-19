@@ -323,7 +323,6 @@ export async function POST(req: Request) {
       {
         success: false,
         message: "Error al procesar el webhook de WhatsApp",
-        error: e,
       },
       {
         status: 500,
