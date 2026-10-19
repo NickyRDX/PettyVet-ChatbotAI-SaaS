@@ -6,6 +6,8 @@ import { generateRespuestaIA } from "@/lib/ai/gemini";
 import { sendMessageWhatsapp } from '@/lib/whatsapp/send'
 import { firmarMensaje } from "@/lib/whatsapp/firma";
 import { getInstrucciones } from "@/lib/ai/instrucciones";
+
+const MAXIMO_CARACTERES = 1000;
 export async function GET(req: Request) {
   // 1. Obtenemos los parámetros que vienen en la URL
   const { searchParams } = new URL(req.url);
@@ -265,10 +267,11 @@ export async function POST(req: Request) {
           },
         );
     }
+    const mensajeReducido = mensajeTexto.cuerpo.slice(0, MAXIMO_CARACTERES);
     const instrucciones = getInstrucciones({
       nombreClinica: clinicaPrisma.nombre,
       nombreCliente: clientePrisma?.nombre || "",
-      mensajeActual: mensajeTexto.cuerpo,
+      mensajeActual: mensajeReducido,
       conversacionPrevia: "",
     })
     const respuestaIA = await generateRespuestaIA({ mensaje: instrucciones })
