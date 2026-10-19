@@ -1,9 +1,10 @@
 // importamos la libreria de google genai
-import { GoogleGenAI, ApiError } from "@google/genai";
+import { GoogleGenAI, ApiError, ThinkingLevel } from "@google/genai";
 import type {
   GenerarRespuestaIaInput,
   GenerarRespuestaIaOutput,
 } from "@/interface/gemini.interface";
+const MAXIMO_TOKENS_SALIDA = 2000;
 // importamos la Api key de google de forma segura
 //
 // ¿Qué es una API key?
@@ -62,7 +63,13 @@ if (!GeminiApi) {
   throw new Error("GEMINI_API_KEY is not set");
 }
 const ai = new GoogleGenAI({ apiKey: GeminiApi });
-const MODELOS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"];
+const MODELOS = [
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-3.5-flash-lite",
+];
 /* Es una función flecha (arrow function). Recibe un número ms (milisegundos) y devuelve lo que está después de la flecha. 1000 ms equivalen a 1 segundo.
 
 Entrada: ms, un número. Por ejemplo, 2000.
@@ -91,7 +98,16 @@ async function llamarConRetry(model: string, contents: string, intentos = 5) {
       /* await ai.models.generateContent(...): le pregunta a Gemini y espera la respuesta.
       { model, contents }: es una abreviatura de { model: model, contents: contents }. Cuando la variable se llama igual que la propiedad, JavaScript te deja escribirla una sola vez.
       return: si Google respondió bien, devolvemos la respuesta y la función termina. No hay más vueltas. Este es el camino feliz. */
-      return await ai.models.generateContent({ model, contents });
+      return await ai.models.generateContent({
+        model,
+        contents,
+        config: {
+          maxOutputTokens: MAXIMO_TOKENS_SALIDA,
+          thinkingConfig: {
+            thinkingLevel: ThinkingLevel.LOW,
+          },
+        },
+      });
     } catch (e) {
       /* e instanceof ApiError: "¿este error es un error oficial de la API de Google?". Puede no serlo; por ejemplo, si se cortó tu internet, el error es otro tipo de objeto. 
       && ("y"): solo se evalúa lo de la derecha si lo de la izquierda es verdadero. Esto es clave: si e no es un ApiError, no tiene .status, y gracias al && nunca llegamos a preguntarlo.
@@ -117,10 +133,23 @@ async function llamarConRetry(model: string, contents: string, intentos = 5) {
 export async function generateRespuestaIA(
   input: GenerarRespuestaIaInput,
 ): Promise<GenerarRespuestaIaOutput> {
-  for (const modelo of MODELOS){
+  for (const modelo of MODELOS) {
     try {
       const response = await llamarConRetry(modelo, input.mensaje);
-      if(response.text) return {texto: response.text}
+      const tokenInput = response.usageMetadata?.promptTokenCount ?? 0;
+      const tokenOutput = response.usageMetadata?.candidatesTokenCount ?? 0;
+      const tokenRazonamiento = response.usageMetadata?.thoughtsTokenCount ?? 0;
+      const tokenTotal = response.usageMetadata?.totalTokenCount ?? 0;
+      const motivoFin = response.candidates?.[0]?.finishReason ?? 0;
+      console.log(
+        `Token Razonamiento: ${tokenRazonamiento}, Token Total: ${tokenTotal}, Motivo Fin: ${motivoFin}`,
+      );
+      if (response.text)
+        return {
+          texto: response.text,
+          tokenEntrada: tokenInput,
+          tokenSalida: tokenOutput,
+        };
     } catch (e) {
       console.warn(`Error en el modelo ${modelo}:`, e);
     }

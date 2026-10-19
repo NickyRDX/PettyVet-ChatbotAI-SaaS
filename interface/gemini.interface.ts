@@ -4,4 +4,6 @@ export interface GenerarRespuestaIaInput {
 }
 export interface GenerarRespuestaIaOutput { 
    texto: string
+   tokenEntrada: number
+   tokenSalida: number
 }
