@@ -5,6 +5,7 @@ import type {
   GenerarRespuestaIaOutput,
 } from "@/interface/gemini.interface";
 const MAXIMO_TOKENS_SALIDA = 2000;
+const MAXIMO_CARACTERES = 200;
 // importamos la Api key de google de forma segura
 //
 // ¿Qué es una API key?
@@ -116,7 +117,7 @@ async function llamarConRetry(model: string, contents: string, intentos = 5) {
       */
       const esTemporal =
         e instanceof ApiError && (e.status === 503 || e.status === 429);
-      /* ¿Me quedan intentos después de este? Con intentos = 3:
+      /* ¿Me quedan intentos después de este? Con intentos = 5:
       En i = 0 hace 0 < 2, o sea true: quedan intentos.
       En i = 1 hace 1 < 2, o sea true: quedan intentos.
       En i = 2 hace 2 < 2, o sea false: era el último.
@@ -124,6 +125,7 @@ async function llamarConRetry(model: string, contents: string, intentos = 5) {
       const menosIntentos = i < intentos - 1;
       /* Si el error no es temporal o no me quedan intentos, lo lanzamos y salimos. */
       if (!esTemporal || !menosIntentos) throw e;
+      console.warn(`Reintentos: ${i + 1} de ${intentos} para el modelo ${model} tipo de error: ${e.status} mensaje: ${e.message.slice(0, MAXIMO_CARACTERES)}`)
       await esperar(1000 * 2 ** i);
     }
   }
