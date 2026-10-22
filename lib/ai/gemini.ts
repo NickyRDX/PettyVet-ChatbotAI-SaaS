@@ -6,6 +6,8 @@ import type {
 } from "@/interface/gemini.interface";
 const MAXIMO_TOKENS_SALIDA = 2000;
 const MAXIMO_CARACTERES = 200;
+const PRESUPUESTO_TIEMPO_MS : number = 15000;
+const TIMEOUT_LLAMADA_MS : number = 20000;
 // importamos la Api key de google de forma segura
 //
 // ¿Qué es una API key?
@@ -65,10 +67,10 @@ if (!GeminiApi) {
 }
 const ai = new GoogleGenAI({ apiKey: GeminiApi });
 const MODELOS = [
-  "gemini-3.8-flash",
-  "gemini-3.6-flash",
-  "gemini-3.5-flash",
   "gemini-3.5-flash-lite",
+  "gemini-3.6-flash",
+  "gemini-3.7-flash",
+  "gemini-3.8-flash",
 ];
 /* Es una función flecha (arrow function). Recibe un número ms (milisegundos) y devuelve lo que está después de la flecha. 1000 ms equivalen a 1 segundo.
 
@@ -84,16 +86,22 @@ Una Promise es un objeto que representa algo que todavía no terminó pero va a 
 
 Si juntás todo: creás una promesa y le pasás r al temporizador. Cuando el temporizador suena, llama a r() y la promesa queda cumplida. */
 const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const calcularRestante = (inicio: number) => {
+  const restante = PRESUPUESTO_TIEMPO_MS - (Date.now() - inicio);
+  return restante
+}
 /* async: la función hace cosas que tardan (hablar con Google, esperar), así que adentro podés usar await y siempre devuelve una Promise.
 model: string: qué modelo usar, por ejemplo "gemini-3.8-flash". Lo recibe como parámetro en vez de tenerlo fijo para poder reusar la función con distintos modelos en el paso 4.
 contents: string: el mensaje del cliente.
 intentos = 3: un parámetro con valor por defecto. Si lo llamás llamarConReintentos("x", "hola"), intentos vale 3. Si lo llamás llamarConReintentos("x", "hola", 5), vale 5. TypeScript deduce solo que es un number.
 Entrada: modelo, mensaje y cantidad de intentos. Salida: la respuesta de Gemini, o un error si no hubo forma de conseguirla. */
-async function llamarConRetry(model: string, contents: string, intentos = 5) {
+async function llamarConRetry(model: string, contents: string, inicio: number, intentos = 3) {
   /* El bucle: Un for clásico. Con intentos = 3, i va a valer 0, 1 y 2, o sea, tres vueltas como máximo. i es el número de intento actual, empezando a contar desde cero.
   ¿Por qué "como máximo"? Porque adentro hay un return y un throw, y cualquiera de los dos corta el bucle y sale de la función en el acto. */
   for (let i = 0; i < intentos; i++) {
     /* El intento: try { ... }: "intentá hacer esto; si explota, saltá al catch". */
+    const modelosRestantes = calcularRestante(inicio)
+    if(modelosRestantes <= 0) throw new Error("Tiempo de respuesta agotado")
     try {
       /* await ai.models.generateContent(...): le pregunta a Gemini y espera la respuesta.
       { model, contents }: es una abreviatura de { model: model, contents: contents }. Cuando la variable se llama igual que la propiedad, JavaScript te deja escribirla una sola vez.
@@ -104,7 +112,7 @@ async function llamarConRetry(model: string, contents: string, intentos = 5) {
         config: {
           maxOutputTokens: MAXIMO_TOKENS_SALIDA,
           httpOptions: {
-            timeout: 20000,
+            timeout: Math.min(modelosRestantes, TIMEOUT_LLAMADA_MS),
           },
           thinkingConfig: {
             thinkingLevel: ThinkingLevel.LOW,
@@ -127,8 +135,13 @@ async function llamarConRetry(model: string, contents: string, intentos = 5) {
       const menosIntentos = i < intentos - 1;
       /* Si el error no es temporal o no me quedan intentos, lo lanzamos y salimos. */
       if (!esTemporal || !menosIntentos) throw e;
-      console.warn(`Reintentos: ${i + 1} de ${intentos} para el modelo ${model} tipo de error: ${e.status} mensaje: ${e.message.slice(0, MAXIMO_CARACTERES)}`)
-      await esperar(1000 * 2 ** i);
+      console.warn(
+        `Reintentos: ${i + 1} de ${intentos} para el modelo ${model} tipo de error: ${e.status} mensaje: ${e.message.slice(0, MAXIMO_CARACTERES)}`,
+      );
+      const tiempoEspera = 1000 * 2 ** i
+      const tiempoRestanteAhora = calcularRestante(inicio)
+      if(tiempoEspera >= tiempoRestanteAhora) throw new Error("Tiempo de respuesta agotado")
+      await esperar(tiempoEspera);
     }
   }
   throw new Error("Sin Intentos");
@@ -137,9 +150,15 @@ async function llamarConRetry(model: string, contents: string, intentos = 5) {
 export async function generateRespuestaIA(
   input: GenerarRespuestaIaInput,
 ): Promise<GenerarRespuestaIaOutput> {
+  const tiempoInicio = Date.now()
   for (const modelo of MODELOS) {
+    const tiempoRestante = calcularRestante(tiempoInicio);
+    if (tiempoRestante <= 0) {
+      console.warn(`Tiempo de respuesta agotado ${tiempoRestante}`)
+      break
+    };
     try {
-      const response = await llamarConRetry(modelo, input.mensaje);
+      const response = await llamarConRetry(modelo, input.mensaje, tiempoInicio);
       const tokenInput = response.usageMetadata?.promptTokenCount ?? 0;
       const tokenOutput = response.usageMetadata?.candidatesTokenCount ?? 0;
       const tokenRazonamiento = response.usageMetadata?.thoughtsTokenCount ?? 0;
