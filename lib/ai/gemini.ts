@@ -66,7 +66,6 @@ if (!GeminiApi) {
 const ai = new GoogleGenAI({ apiKey: GeminiApi });
 const MODELOS = [
   "gemini-3.8-flash",
-  "gemini-3.7-flash",
   "gemini-3.6-flash",
   "gemini-3.5-flash",
   "gemini-3.5-flash-lite",
@@ -104,6 +103,9 @@ async function llamarConRetry(model: string, contents: string, intentos = 5) {
         contents,
         config: {
           maxOutputTokens: MAXIMO_TOKENS_SALIDA,
+          httpOptions: {
+            timeout: 20000,
+          },
           thinkingConfig: {
             thinkingLevel: ThinkingLevel.LOW,
           },
