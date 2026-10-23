@@ -139,9 +139,12 @@ async function llamarConRetry(model: string, contents: string, inicio: number, i
         `Reintentos: ${i + 1} de ${intentos} para el modelo ${model} tipo de error: ${e.status} mensaje: ${e.message.slice(0, MAXIMO_CARACTERES)}`,
       );
       const tiempoEspera = 1000 * 2 ** i
+      const esperaRandom = Math.random() * 1000
+      const tiempoEsperaFinal = tiempoEspera + esperaRandom
       const tiempoRestanteAhora = calcularRestante(inicio)
-      if(tiempoEspera >= tiempoRestanteAhora) throw new Error("Tiempo de respuesta agotado")
-      await esperar(tiempoEspera);
+      if (tiempoEsperaFinal >= tiempoRestanteAhora)
+        throw new Error("Tiempo de respuesta agotado");
+      await esperar(tiempoEsperaFinal);
     }
   }
   throw new Error("Sin Intentos");
