@@ -42,6 +42,14 @@ enum TipoMensaje {
   @@map("tipo_mensaje")
 }
 
+enum EstadoMensaje {
+  RECIBIDO
+  RESPONDIDO
+  FALLIDO
+
+  @@map("estado_mensaje")
+}
+
 model Clinica {
   id                    String   @id @default(cuid())
   nombre                String
@@ -140,6 +148,8 @@ model Mensaje {
   wamid           String?           @unique
   direccion       DireccionMensaje
   tipo            TipoMensaje       @default(TEXTO)
+  /// Solo para mensajes ENTRANTES: RECIBIDO al guardarlo, RESPONDIDO si se contestó, FALLIDO si algo se rompió. Vacío en SALIENTES y en mensajes viejos.
+  estado          EstadoMensaje?
   cuerpo          String
   urgencia        Urgencia?
   createdAt       DateTime          @default(now()) @map("creado_en") @db.Timestamptz

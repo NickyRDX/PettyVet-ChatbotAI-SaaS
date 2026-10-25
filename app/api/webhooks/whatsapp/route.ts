@@ -117,6 +117,8 @@ export async function POST(req: Request) {
     }
     const datosValidados: WhatsAppWebhook = resultados.data;
     const mensajes = datosValidados.entry[0].changes[0].value.messages;
+    const nombreMeta =
+      datosValidados.entry[0].changes[0].value.contacts?.[0]?.profile?.name;
     if (!mensajes || mensajes.length === 0) {
       return Response.json(
         {
@@ -189,6 +191,7 @@ export async function POST(req: Request) {
         data: {
           clinicaId: clinicaPrisma.id,
           telefono: telefonoFrom,
+          nombre: nombreMeta,
         },
       });
     }
@@ -229,7 +232,6 @@ export async function POST(req: Request) {
       );
     }
     // switch para verificar el tipo de mensaje texto o audio
-    
     let mensajeTexto;
     switch (tipoCuerpo) {
       case "text":
@@ -241,6 +243,7 @@ export async function POST(req: Request) {
             conversacionId: conversacion.id,
             wamid: id,
             direccion: "ENTRANTE",
+            estado: "RECIBIDO",
             tipo: "TEXTO",
             cuerpo: cuerpo,
           },
@@ -270,7 +273,7 @@ export async function POST(req: Request) {
     const mensajeReducido = mensajeTexto.cuerpo.slice(0, MAXIMO_CARACTERES);
     const instrucciones = getInstrucciones({
       nombreClinica: clinicaPrisma.nombre,
-      nombreCliente: clientePrisma?.nombre || "",
+      nombreCliente: nombreMeta || "",
       mensajeActual: mensajeReducido,
       conversacionPrevia: "",
     })
