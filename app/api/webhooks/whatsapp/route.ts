@@ -8,6 +8,7 @@ import { firmarMensaje } from "@/lib/whatsapp/firma";
 import { getInstrucciones } from "@/lib/ai/instrucciones";
 
 const MAXIMO_CARACTERES = 1000;
+const UMBRAL_MENSAJE_COLGADO_MS: number = 60000;
 export async function GET(req: Request) {
   // 1. Obtenemos los parámetros que vienen en la URL
   const { searchParams } = new URL(req.url);
@@ -231,22 +232,71 @@ export async function POST(req: Request) {
         },
       );
     }
+    // verificamos si el mensaje con su id ya existe en la base de datos
+    const buscarWamid = await prisma.mensaje.findUnique({
+      where: {
+        wamid: id,
+      },
+      select: {
+        id: true,
+        estado: true,
+        createdAt: true,
+      },
+    });
+    let mensajeWamidExistente = buscarWamid;
+    if (mensajeWamidExistente) {
+      if (
+        mensajeWamidExistente.estado === "RECIBIDO" &&
+        mensajeWamidExistente.createdAt >
+          new Date(Date.now() - UMBRAL_MENSAJE_COLGADO_MS)
+      ) {
+        return Response.json(
+          {
+            success: true,
+            message: "Mensaje ya existe y se encuentra en estado RECIBIDO",
+          },
+          {
+            status: 200,
+          },
+        );
+      }
+      if (mensajeWamidExistente.estado === "RESPONDIDO") {
+        return Response.json(
+          {
+            success: true,
+            message: "Mensaje ya existe y se encuentra en estado RESPONDIDO",
+          },
+          { status: 200 },
+        );
+      }
+    }
     // switch para verificar el tipo de mensaje texto o audio
     switch (tipoCuerpo) {
       case "text":
         const cuerpo = mensaje.text.body;
         // si es texto, guardamos el mensaje en la base de datos
-        mensajeTexto = await prisma.mensaje.create({
-          data: {
-            clinicaId: clinicaPrisma.id,
-            conversacionId: conversacion.id,
-            wamid: id,
-            direccion: "ENTRANTE",
-            estado: "RECIBIDO",
-            tipo: "TEXTO",
-            cuerpo: cuerpo,
-          },
-        });
+        if (!mensajeWamidExistente) {
+          mensajeTexto = await prisma.mensaje.create({
+            data: {
+              clinicaId: clinicaPrisma.id,
+              conversacionId: conversacion.id,
+              wamid: id,
+              direccion: "ENTRANTE",
+              estado: "RECIBIDO",
+              tipo: "TEXTO",
+              cuerpo: cuerpo,
+            },
+          });
+        } else {
+          mensajeTexto = await prisma.mensaje.update({
+            where: {
+              id: mensajeWamidExistente.id,
+            },
+            data: {
+              estado: "RECIBIDO",
+            },
+          });
+        }
         break;
       case "audio":
         return Response.json(
@@ -325,10 +375,10 @@ export async function POST(req: Request) {
     ) {
       return Response.json(
         {
-          success: false,
-          message: "wamid ya existente",
+          success: true,
+          message: "Mensaje ya recibido y en proceso",
         },
-        { status: 409 },
+        { status: 200 },
       );
     }
     try {
@@ -345,7 +395,7 @@ export async function POST(req: Request) {
     } catch (error: unknown) {
       console.error("Error al actualizar el estado del mensaje", error);
     }
-    
+
     return Response.json(
       {
         success: false,
