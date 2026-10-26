@@ -9,6 +9,7 @@ import { getInstrucciones } from "@/lib/ai/instrucciones";
 
 const MAXIMO_CARACTERES = 1000;
 const UMBRAL_MENSAJE_COLGADO_MS: number = 60000;
+const MENSAJE_TIPO_NO_SOPORTADO : string = "Te pedimos disculpas pero actualmente no procesamos mensajes de Audio, solamente procesamos mensajes de texto" ;
 export async function GET(req: Request) {
   // 1. Obtenemos los parámetros que vienen en la URL
   const { searchParams } = new URL(req.url);
@@ -273,6 +274,16 @@ export async function POST(req: Request) {
     // switch para verificar el tipo de mensaje texto o audio
     switch (tipoCuerpo) {
       case "text":
+        if (!mensaje.text) {
+          console.warn("Mensaje de tipo text sin campo text, wamid:", id);
+          return Response.json(
+            {
+              success: false,
+              message: "Mensaje no contiene texto",
+            },
+            { status: 200 },
+          );
+        }
         const cuerpo = mensaje.text.body;
         // si es texto, guardamos el mensaje en la base de datos
         if (!mensajeWamidExistente) {
@@ -299,23 +310,21 @@ export async function POST(req: Request) {
         }
         break;
       case "audio":
-        return Response.json(
-          {
-            success: false,
-            message: `Tipo de mensaje audio no soportado actualmente: ${tipoCuerpo}`,
-          },
-          {
-            status: 400,
-          },
-        );
+        
       default:
+        const mensajeNoSoportado = await sendMessageWhatsapp({
+          phoneNumberId: phoneNumberId,
+          to: telefonoFrom,
+          texto: MENSAJE_TIPO_NO_SOPORTADO,
+        })
         return Response.json(
           {
-            success: false,
+            success: true,
             message: `Tipo de mensaje no soportado actualmente: ${tipoCuerpo}`,
+            data: mensajeNoSoportado,
           },
           {
-            status: 400,
+            status: 200,
           },
         );
     }
@@ -346,6 +355,7 @@ export async function POST(req: Request) {
         direccion: "SALIENTE",
         wamid: envioWhatsapp.wamid,
         tipo: "TEXTO",
+        estado: "GENERADO",
       },
     });
     mensajeTexto = await prisma.mensaje.update({

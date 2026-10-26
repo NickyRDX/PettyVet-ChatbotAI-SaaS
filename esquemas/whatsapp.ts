@@ -6,7 +6,7 @@ export const WhatsAppMessageSchema = z.object({
   type: z.string(),
   text: z.object({
     body: z.string(),
-  }),
+  }).optional(),
 });
 export const WhatsAppWebhookSchema = z.object({
   object: z.string(),

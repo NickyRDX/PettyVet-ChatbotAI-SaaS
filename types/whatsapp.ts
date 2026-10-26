@@ -3,7 +3,7 @@ export type WhatsAppMessage = {
   id: string;
   timestamp: string;
   type: string;
-  text: {
+  text?: {
     body: string;
   };
 };
