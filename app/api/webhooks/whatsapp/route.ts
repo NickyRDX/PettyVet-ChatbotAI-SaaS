@@ -3,7 +3,7 @@ import { WhatsAppWebhookSchema } from "@/esquemas/whatsapp";
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { generateRespuestaIA } from "@/lib/ai/gemini";
-import { sendMessageWhatsapp } from '@/lib/whatsapp/send'
+import { sendMessageWhatsapp } from "@/lib/whatsapp/send";
 import { firmarMensaje } from "@/lib/whatsapp/firma";
 import { getInstrucciones } from "@/lib/ai/instrucciones";
 
@@ -85,9 +85,10 @@ export async function GET(req: Request) {
 // Type --> describir
 // Zod --> validar
 export async function POST(req: Request) {
+  let mensajeTexto;
   try {
     const bodyCrudo = await req.text();
-    const headerFirma = req.headers.get("x-hub-signature-256")
+    const headerFirma = req.headers.get("x-hub-signature-256");
     if (
       !firmarMensaje(bodyCrudo, headerFirma, process.env.WHATSAPP_APP_SECRET)
     ) {
@@ -117,6 +118,8 @@ export async function POST(req: Request) {
     }
     const datosValidados: WhatsAppWebhook = resultados.data;
     const mensajes = datosValidados.entry[0].changes[0].value.messages;
+    const nombreMeta =
+      datosValidados.entry[0].changes[0].value.contacts?.[0]?.profile?.name;
     if (!mensajes || mensajes.length === 0) {
       return Response.json(
         {
@@ -159,7 +162,6 @@ export async function POST(req: Request) {
         clinicaId_telefono: {
           clinicaId: clinicaPrisma.id,
           telefono: telefonoFrom,
-          
         },
       },
     });
@@ -189,6 +191,7 @@ export async function POST(req: Request) {
         data: {
           clinicaId: clinicaPrisma.id,
           telefono: telefonoFrom,
+          nombre: nombreMeta,
         },
       });
     }
@@ -229,8 +232,6 @@ export async function POST(req: Request) {
       );
     }
     // switch para verificar el tipo de mensaje texto o audio
-    
-    let mensajeTexto;
     switch (tipoCuerpo) {
       case "text":
         const cuerpo = mensaje.text.body;
@@ -241,6 +242,7 @@ export async function POST(req: Request) {
             conversacionId: conversacion.id,
             wamid: id,
             direccion: "ENTRANTE",
+            estado: "RECIBIDO",
             tipo: "TEXTO",
             cuerpo: cuerpo,
           },
@@ -270,20 +272,22 @@ export async function POST(req: Request) {
     const mensajeReducido = mensajeTexto.cuerpo.slice(0, MAXIMO_CARACTERES);
     const instrucciones = getInstrucciones({
       nombreClinica: clinicaPrisma.nombre,
-      nombreCliente: clientePrisma?.nombre || "",
+      nombreCliente: nombreMeta || "",
       mensajeActual: mensajeReducido,
       conversacionPrevia: "",
-    })
-    const respuestaIA = await generateRespuestaIA({ mensaje: instrucciones })
+    });
+    const respuestaIA = await generateRespuestaIA({ mensaje: instrucciones });
     console.log(
-      "Tokens de entrada: ", respuestaIA.tokenEntrada,
-      "Tokens de salida: ", respuestaIA.tokenSalida
-    )
+      "Tokens de entrada: ",
+      respuestaIA.tokenEntrada,
+      "Tokens de salida: ",
+      respuestaIA.tokenSalida,
+    );
     const envioWhatsapp = await sendMessageWhatsapp({
       phoneNumberId: phoneNumberId,
       to: telefonoFrom,
-      texto: respuestaIA.texto
-    })
+      texto: respuestaIA.texto,
+    });
     const mensajeSalida = await prisma.mensaje.create({
       data: {
         clinicaId: clinicaPrisma.id,
@@ -291,10 +295,18 @@ export async function POST(req: Request) {
         cuerpo: respuestaIA.texto,
         direccion: "SALIENTE",
         wamid: envioWhatsapp.wamid,
-        tipo: "TEXTO"
-      }
-    })
-    console.log("mensajeSalida: ", mensajeSalida)
+        tipo: "TEXTO",
+      },
+    });
+    mensajeTexto = await prisma.mensaje.update({
+      where: {
+        id: mensajeTexto.id,
+      },
+      data: {
+        estado: "RESPONDIDO",
+      },
+    });
+    console.log("mensajeSalida: ", mensajeSalida);
     return Response.json(
       {
         success: true,
@@ -319,6 +331,21 @@ export async function POST(req: Request) {
         { status: 409 },
       );
     }
+    try {
+      if (mensajeTexto) {
+        await prisma.mensaje.update({
+          where: {
+            id: mensajeTexto.id,
+          },
+          data: {
+            estado: "FALLIDO",
+          },
+        });
+      }
+    } catch (error: unknown) {
+      console.error("Error al actualizar el estado del mensaje", error);
+    }
+    
     return Response.json(
       {
         success: false,
