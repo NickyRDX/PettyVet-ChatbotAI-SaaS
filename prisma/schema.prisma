@@ -46,7 +46,7 @@ enum EstadoMensaje {
   RECIBIDO
   RESPONDIDO
   FALLIDO
-
+  GENERADO
   @@map("estado_mensaje")
 }
 

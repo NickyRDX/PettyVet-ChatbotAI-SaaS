@@ -6,7 +6,7 @@ export const WhatsAppMessageSchema = z.object({
   type: z.string(),
   text: z.object({
     body: z.string(),
-  }),
+  }).optional(),
 });
 export const WhatsAppWebhookSchema = z.object({
   object: z.string(),
@@ -26,7 +26,13 @@ export const WhatsAppWebhookSchema = z.object({
             // NUEVO: nombre del perfil de WhatsApp del cliente. Va en `value`, hermano de `messages`.
             // Todo es opcional: los avisos de estado de entrega no traen contactos y hay usuarios sin nombre.
             contacts: z
-              .array(z.object({ profile: z.object({ name: z.string().optional() }).optional() }))
+              .array(
+                z.object({
+                  profile: z.object({ name: z.string().optional() }).optional(),
+                  // NUEVO: teléfono del contacto. Sirve para emparejar cada contacto con el `from` de su mensaje.
+                  wa_id: z.string().optional(),
+                }),
+              )
               .optional(),
           }),
         }),

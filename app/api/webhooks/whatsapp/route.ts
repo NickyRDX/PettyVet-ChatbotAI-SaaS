@@ -2,12 +2,9 @@ import type { WhatsAppWebhook } from "@/types/whatsapp";
 import { WhatsAppWebhookSchema } from "@/esquemas/whatsapp";
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
-import { generateRespuestaIA } from "@/lib/ai/gemini";
-import { sendMessageWhatsapp } from "@/lib/whatsapp/send";
 import { firmarMensaje } from "@/lib/whatsapp/firma";
-import { getInstrucciones } from "@/lib/ai/instrucciones";
+import { procesarMensajes } from "@/lib/whatsapp/procesarMensajes";
 
-const MAXIMO_CARACTERES = 1000;
 export async function GET(req: Request) {
   // 1. Obtenemos los parámetros que vienen en la URL
   const { searchParams } = new URL(req.url);
@@ -85,7 +82,6 @@ export async function GET(req: Request) {
 // Type --> describir
 // Zod --> validar
 export async function POST(req: Request) {
-  let mensajeTexto;
   try {
     const bodyCrudo = await req.text();
     const headerFirma = req.headers.get("x-hub-signature-256");
@@ -117,9 +113,9 @@ export async function POST(req: Request) {
       );
     }
     const datosValidados: WhatsAppWebhook = resultados.data;
-    const mensajes = datosValidados.entry[0].changes[0].value.messages;
-    const nombreMeta =
-      datosValidados.entry[0].changes[0].value.contacts?.[0]?.profile?.name;
+    // NUEVO: apodo corto para el camino largo. `value` trae `messages`, `contacts` y `metadata`.
+    const value = datosValidados.entry[0].changes[0].value;
+    const mensajes = value.messages;
     if (!mensajes || mensajes.length === 0) {
       return Response.json(
         {
@@ -131,8 +127,7 @@ export async function POST(req: Request) {
         },
       );
     }
-    const phoneNumberId =
-      datosValidados.entry[0].changes[0].value.metadata.phone_number_id;
+    const phoneNumberId = value.metadata.phone_number_id;
     const clinicaPrisma = await prisma.clinica.findUnique({
       where: {
         metaPhoneNumberId: phoneNumberId,
@@ -146,176 +141,31 @@ export async function POST(req: Request) {
         },
         { status: 404 },
       );
-    }
-    const telefonoFrom = mensajes[0].from;
-    if (!telefonoFrom || telefonoFrom.length === 0) {
-      return Response.json(
-        {
-          success: false,
-          message: "Telefono no se encuentra",
-        },
-        { status: 400 },
-      );
-    }
-    const clientePrisma = await prisma.cliente.findUnique({
-      where: {
-        clinicaId_telefono: {
-          clinicaId: clinicaPrisma.id,
-          telefono: telefonoFrom,
-        },
-      },
-    });
-    // Patrón "buscar o crear": queremos terminar SIEMPRE con un cliente en mano.
-    //
-    // ¿Por qué `let` y no `const`?
-    // `const` no deja reasignar: una vez que la variable apunta a un valor, no se
-    // le puede poner otro (`cliente = ...` daría error). `let` sí deja reasignar.
-    // Acá la necesitamos porque `cliente` puede arrancar con un valor y terminar con otro:
-    //   - Si el cliente YA existía → `clientePrisma` es el objeto del cliente, y
-    //     `cliente` se queda con ese valor (el `if` no se ejecuta).
-    //   - Si NO existía → `findUnique` devolvió `null`, entonces `cliente` arranca
-    //     en `null`, entra al `if` y se REASIGNA con el cliente recién creado.
-    //
-    // Tipos: `clientePrisma` es `Cliente | null`, por eso `cliente` también lo es.
-    // Después del `if`, TypeScript sabe que `cliente` ya no puede ser `null`
-    // (o ya existía, o lo acabamos de crear), así que desde acá es `Cliente`.
-    //
-    // Ojo: `clientePrisma` NO cambia; sigue valiendo `null` si no existía.
-    // El valor actualizado está solo en `cliente`.
-    let cliente = clientePrisma;
-    // `!cliente` es true cuando `cliente` es `null` → el cliente no existe todavía.
-    if (!cliente) {
-      // Lo creamos en la base y guardamos el resultado en la MISMA variable `cliente`.
-      // `await` espera a que Prisma termine de insertar y devuelva el registro creado.
-      cliente = await prisma.cliente.create({
-        data: {
-          clinicaId: clinicaPrisma.id,
-          telefono: telefonoFrom,
-          nombre: nombreMeta,
-        },
-      });
-    }
-    // Ahora que saber : Esa clínica y este cliente ya tienen una conversacion?
-    const conversacionPrisma = await prisma.conversacion.findUnique({
-      where: {
-        clinicaId_clienteId: {
-          clinicaId: clinicaPrisma.id,
-          clienteId: cliente.id,
-        },
-      },
-    });
-    // usamos un condicional para si existe una conversacion previa o no
-    let conversacion = conversacionPrisma;
-    if (!conversacion) {
-      conversacion = await prisma.conversacion.create({
-        data: {
-          clinicaId: clinicaPrisma.id,
-          clienteId: cliente.id,
-        },
-      });
-    }
-    // De todos los mensajes que recibí, agarrá el primero y guardalo en una variable llamada mensaje
-    const mensaje = mensajes[0];
-    // Si resulta que no encontré ningún mensaje...
-    const tipoCuerpo = mensaje.type;
-    const id = mensaje.id;
-    // comprobar si existe id
-    if (!id) {
-      return Response.json(
-        {
-          success: false,
-          message: "No se encontró el id del mensaje",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-    // switch para verificar el tipo de mensaje texto o audio
-    switch (tipoCuerpo) {
-      case "text":
-        const cuerpo = mensaje.text.body;
-        // si es texto, guardamos el mensaje en la base de datos
-        mensajeTexto = await prisma.mensaje.create({
-          data: {
-            clinicaId: clinicaPrisma.id,
-            conversacionId: conversacion.id,
-            wamid: id,
-            direccion: "ENTRANTE",
-            estado: "RECIBIDO",
-            tipo: "TEXTO",
-            cuerpo: cuerpo,
-          },
-        });
-        break;
-      case "audio":
-        return Response.json(
-          {
-            success: false,
-            message: `Tipo de mensaje audio no soportado actualmente: ${tipoCuerpo}`,
-          },
-          {
-            status: 400,
-          },
-        );
-      default:
-        return Response.json(
-          {
-            success: false,
-            message: `Tipo de mensaje no soportado actualmente: ${tipoCuerpo}`,
-          },
-          {
-            status: 400,
-          },
-        );
-    }
-    const mensajeReducido = mensajeTexto.cuerpo.slice(0, MAXIMO_CARACTERES);
-    const instrucciones = getInstrucciones({
-      nombreClinica: clinicaPrisma.nombre,
-      nombreCliente: nombreMeta || "",
-      mensajeActual: mensajeReducido,
-      conversacionPrevia: "",
-    });
-    const respuestaIA = await generateRespuestaIA({ mensaje: instrucciones });
-    console.log(
-      "Tokens de entrada: ",
-      respuestaIA.tokenEntrada,
-      "Tokens de salida: ",
-      respuestaIA.tokenSalida,
+    } // Fin de la verificacion de la clinica
+    const promesas = mensajes.map((mensaje) =>
+      procesarMensajes({
+        clinica: clinicaPrisma,
+        phoneNumberId: phoneNumberId,
+        contactos: value.contacts,
+        mensaje: mensaje,
+      }),
     );
-    const envioWhatsapp = await sendMessageWhatsapp({
-      phoneNumberId: phoneNumberId,
-      to: telefonoFrom,
-      texto: respuestaIA.texto,
-    });
-    const mensajeSalida = await prisma.mensaje.create({
-      data: {
-        clinicaId: clinicaPrisma.id,
-        conversacionId: conversacion.id,
-        cuerpo: respuestaIA.texto,
-        direccion: "SALIENTE",
-        wamid: envioWhatsapp.wamid,
-        tipo: "TEXTO",
-      },
-    });
-    mensajeTexto = await prisma.mensaje.update({
-      where: {
-        id: mensajeTexto.id,
-      },
-      data: {
-        estado: "RESPONDIDO",
-      },
-    });
-    console.log("mensajeSalida: ", mensajeSalida);
+    const mensajesProcesados = await Promise.all(promesas);
+    if (mensajesProcesados.every((m) => m === true)) {
+      return Response.json(
+        {
+          success: true,
+          message: "Mensajes procesados correctamente",
+        },
+        { status: 200 },
+      );
+    }
     return Response.json(
       {
-        success: true,
-        message: "La petición se procesó correctamente.",
-        data: mensajeTexto,
+        success: false,
+        message: "Error al procesar el webhook de WhatsApp",
       },
-      {
-        status: 200,
-      },
+      { status: 500 },
     );
   } catch (e: unknown) {
     console.error("Error al procesar el webhook de WhatsApp", e);
@@ -325,27 +175,12 @@ export async function POST(req: Request) {
     ) {
       return Response.json(
         {
-          success: false,
-          message: "wamid ya existente",
+          success: true,
+          message: "Mensaje ya recibido y en proceso",
         },
-        { status: 409 },
+        { status: 200 },
       );
     }
-    try {
-      if (mensajeTexto) {
-        await prisma.mensaje.update({
-          where: {
-            id: mensajeTexto.id,
-          },
-          data: {
-            estado: "FALLIDO",
-          },
-        });
-      }
-    } catch (error: unknown) {
-      console.error("Error al actualizar el estado del mensaje", error);
-    }
-    
     return Response.json(
       {
         success: false,

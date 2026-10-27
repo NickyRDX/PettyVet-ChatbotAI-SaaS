@@ -3,7 +3,7 @@ export type WhatsAppMessage = {
   id: string;
   timestamp: string;
   type: string;
-  text: {
+  text?: {
     body: string;
   };
 };
@@ -21,7 +21,8 @@ export type WhatsAppWebhook = {
         };
         messages?: WhatsAppMessage[];
         // NUEVO: espejo en TypeScript de `contacts` del schema de Zod (mismo nivel que `messages`).
-        contacts?: { profile?: { name?: string } }[];
+        // NUEVO: `wa_id` es el teléfono del contacto (se compara con el `from` del mensaje).
+        contacts?: { profile?: { name?: string }; wa_id?: string }[];
       };
     }[];
   }[];
