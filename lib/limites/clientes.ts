@@ -25,3 +25,17 @@ export async function superoLimiteMensajes(
   }
   return false;
 }
+// Claude: ¿ya hay un entrante LIMITADO en la ventana? Si lo hay, a este cliente ya se le avisó. Se llama ANTES de marcar el mensaje actual como LIMITADO, si no se contaría a sí mismo.
+export async function yaSeAvisoLimite(conversacionId: string): Promise<boolean> {
+  const cantidadLimitados = await prisma.mensaje.count({
+    where: {
+      direccion: "ENTRANTE",
+      estado: "LIMITADO",
+      conversacionId: conversacionId,
+      createdAt: {
+        gte: new Date(Date.now() - VENTANA_MS),
+      },
+    },
+  });
+  return cantidadLimitados > 0;
+}
