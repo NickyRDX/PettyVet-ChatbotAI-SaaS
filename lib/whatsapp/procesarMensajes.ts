@@ -5,11 +5,13 @@ import type { WhatsAppMessage } from "@/types/whatsapp";
 import { generateRespuestaIA } from "@/lib/ai/gemini";
 import { sendMessageWhatsapp } from "@/lib/whatsapp/send";
 import { getInstrucciones } from "@/lib/ai/instrucciones";
-import { superoLimiteMensajes } from "@/lib/limites/clientes";
+import { superoLimiteMensajes, yaSeAvisoLimite } from "@/lib/limites/clientes";
 const MAXIMO_CARACTERES = 1000;
 const UMBRAL_MENSAJE_COLGADO_MS: number = 60000;
 const MENSAJE_TIPO_NO_SOPORTADO: string =
   "Te pedimos disculpas pero actualmente no procesamos mensajes de Audio, solamente procesamos mensajes de texto";
+const MENSAJE_LIMITE_ALCANZADO: string =
+  "Alcanzaste el límite de mensajes permitidos por día. Por favor, volvé a escribirnos más tarde.";
 // DATOS DE ENTRADA: lo que esta función recibe desde route.ts (ella no puede ver las variables de POST).
 // - mensaje:       UN mensaje de la lista `value.messages` (route.ts lo reparte con map)
 // - clinica:       la clínica que route.ts ya buscó por `phoneNumberId` (se busca una vez, no por mensaje)
@@ -126,9 +128,13 @@ export async function procesarMensajes({
         );
         return true;
       }
-      if (mensajeWamidExistente.estado === "RESPONDIDO") {
+      // Claude: LIMITADO también cuenta como ya atendido; así un reenvío de Meta no repite el aviso del límite.
+      if (
+        mensajeWamidExistente.estado === "RESPONDIDO" ||
+        mensajeWamidExistente.estado === "LIMITADO"
+      ) {
         console.log(
-          "Mensaje ya existe y se encuentra en estado RESPONDIDO, wamid:",
+          "Mensaje ya existe y se encuentra en estado RESPONDIDO o LIMITADO, wamid:",
           id,
         );
         return true;
@@ -182,7 +188,9 @@ export async function procesarMensajes({
       console.log(
         "Se ha alcanzado el limite de mensajes entrantes en la ventana de 24 horas",
       );
-      // Claude: marco el entrante como LIMITADO (mismo patrón que el update a RESPONDIDO). Requiere aplicar el enum a la base antes de probar.
+      // Claude: se pregunta ANTES de marcar el mensaje actual como LIMITADO (si no, se contaría a sí mismo).
+      const yaAvisado = await yaSeAvisoLimite(conversacion.id);
+      // Claude: marco el entrante como LIMITADO (mismo patrón que el update a RESPONDIDO).
       await prisma.mensaje.update({
         where: {
           id: mensajeTexto.id,
@@ -191,6 +199,14 @@ export async function procesarMensajes({
           estado: "LIMITADO",
         },
       });
+      // Claude: aviso fijo una sola vez por ventana; sale por el phoneNumberId de ESTA clínica y va al cliente de ESTA conversación.
+      if (!yaAvisado) {
+        await sendMessageWhatsapp({
+          phoneNumberId: phoneNumberId,
+          to: telefonoFrom,
+          texto: MENSAJE_LIMITE_ALCANZADO,
+        });
+      }
       return true;
     }
     const mensajeReducido = mensajeTexto.cuerpo.slice(0, MAXIMO_CARACTERES);
