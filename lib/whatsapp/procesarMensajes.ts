@@ -5,6 +5,7 @@ import type { WhatsAppMessage } from "@/types/whatsapp";
 import { generateRespuestaIA } from "@/lib/ai/gemini";
 import { sendMessageWhatsapp } from "@/lib/whatsapp/send";
 import { getInstrucciones } from "@/lib/ai/instrucciones";
+import { superoLimiteMensajes } from "@/lib/limites/clientes";
 const MAXIMO_CARACTERES = 1000;
 const UMBRAL_MENSAJE_COLGADO_MS: number = 60000;
 const MENSAJE_TIPO_NO_SOPORTADO: string =
@@ -175,6 +176,22 @@ export async function procesarMensajes({
         });
         console.log(`Tipo de mensaje no soportado actualmente: ${tipoCuerpo}`);
         return true;
+    }
+    const superoLimite = await superoLimiteMensajes(conversacion.id);
+    if (superoLimite) {
+      console.log(
+        "Se ha alcanzado el limite de mensajes entrantes en la ventana de 24 horas",
+      );
+      // Claude: marco el entrante como LIMITADO (mismo patrón que el update a RESPONDIDO). Requiere aplicar el enum a la base antes de probar.
+      await prisma.mensaje.update({
+        where: {
+          id: mensajeTexto.id,
+        },
+        data: {
+          estado: "LIMITADO",
+        },
+      });
+      return true;
     }
     const mensajeReducido = mensajeTexto.cuerpo.slice(0, MAXIMO_CARACTERES);
     const instrucciones = getInstrucciones({
