@@ -12,7 +12,7 @@ const navItems: HeaderProps[] = [
   { id: 2, label: "WhatsApp IA", href: "#WhatsAppIA" },
   { id: 3, label: "Facturación", href: "#Facturación" },
   { id: 4, label: "Prontuario & Citas", href: "#Prontuario&Citas" },
-  { id: 5, label: "Precio", href: "#Precio" },
+  { id: 5, label: "Precio", href: "/landing#Precio" },
   { id: 6, label: "Multi-sede", href: "#Multi-sede" },
   { id: 7, label: "Contacto", href: "#Contacto" },
 ];
@@ -30,8 +30,8 @@ export default function Header() {
               PETTYVET
             </span>
           </Link>
-          <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-200/40">
-            <span className="font-light text-sm text-slate-200">
+          <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-200/20">
+            <span className="font-light text-[13px] tracking-tight text-slate-100">
               🌎 hecho para argentina
             </span>
           </div>
@@ -42,7 +42,7 @@ export default function Header() {
         >
           {navItems.map(({ id, label, href }) => (
             <Link
-              className="font-light text-sm text-slate-200 hover:text-slate-700 transition-colors duration-300"
+              className="font-light text-sm tracking-wide text-slate-100 hover:text-[#14B8A6] transition-colors duration-300"
               key={id}
               href={href}
             >
@@ -52,9 +52,9 @@ export default function Header() {
         </nav>
         <div className="flex items-center gap-3">
           <Link href="#">
-            <Button className="flex items-center gap-1.5 leading-tight cursor-pointer text-md px-3 py-5 tracking-tight bg-[#10B981] border-none">
+            <Button className="flex items-center gap-1.5 cursor-pointer text-sm px-3 py-5 rounded-full bg-[#10B981] border-none hover:bg-[#14B8A6] transition-colors duration-300">
               Prueba
-              <Image src="/flecha.svg" alt="flecha" width={20} height={20} />
+              <Image src="/flecha.svg" alt="flecha" width={18} height={18} />
             </Button>
           </Link>
         </div>

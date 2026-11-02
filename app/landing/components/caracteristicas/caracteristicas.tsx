@@ -179,12 +179,12 @@ export default function caracteristicas() {
                 Cirujano, Asistente, Facturista o Peluquería Canina.
               </p>
             </div>
-            <div className="shrink-0">
+            <div className="shrink">
               <div className="p-4 rounded-lg bg-secondary/30 text-center">
-                <span className="text-[#0F766E] font-semibold tracking-tight text-2xl md:text-3xl leading-tight block">
+                <span className="text-[#0F766E] font-semibold tracking-tight text-2xl leading-tight block">
                   +60 Sedes
                 </span>
-                <span className='text-muted-foreground tracking-tight font-normal leading-relaxed text-[14px]'>Conectadas en Tiempo Real</span>
+                <span className='text-muted-foreground tracking-tight font-normal leading-relaxed text-[12px]'>Conectadas en Tiempo Real</span>
               </div>
             </div>
           </div>

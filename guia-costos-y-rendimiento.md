@@ -1,3 +1,5 @@
+> ⚠️ **OBSOLETA.** Esta guía fue reemplazada por `hoja-de-ruta.md`. Usá solo ese archivo para no mezclar la numeración vieja (Fases 1 a 9) con la nueva (Fases A a I).
+
 # Guía: controlar la plata y aguantar mucha gente a la vez
 
 > Esta guía no tiene código para copiar y pegar. Tiene el *por qué*, el *qué entra y qué sale*,
