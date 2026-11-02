@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { exigirApiKey } from "@/lib/seguridad/exigirApiKey";
 import { z } from "zod";
 
 const MensajeSchema = z.object({
@@ -12,6 +13,8 @@ const MensajeSchema = z.object({
 });
 type MensajeSchemaType = z.infer<typeof MensajeSchema>;
 export async function POST(req: Request) {
+  const rechazarEntrada = exigirApiKey(req);
+  if(rechazarEntrada) return rechazarEntrada;
   try {
     const body = await req.json();
     const validarBody = MensajeSchema.safeParse(body);

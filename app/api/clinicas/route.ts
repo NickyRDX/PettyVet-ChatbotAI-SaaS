@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
+import { exigirApiKey } from "@/lib/seguridad/exigirApiKey";
 export async function GET(r: Request) {
+  const rechazarEntrada = exigirApiKey(r);
+  if(rechazarEntrada) return rechazarEntrada;
   try {
     const { searchParams } = new URL(r.url);
     const nombreClinica = searchParams.get("nombre")?.trim();
@@ -66,8 +69,9 @@ const clinicSchema = z.object({
   metaPhoneNumberId: z.string().optional(),
 });
 // type ClinicType = z.infer<typeof clinicSchema>;
-
 export async function POST(req: Request) {
+  const rechazarEntrada = exigirApiKey(req);
+  if(rechazarEntrada) return rechazarEntrada;
   try {
     const b: unknown = await req.json();
     const r = clinicSchema.safeParse(b);
@@ -126,4 +130,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
