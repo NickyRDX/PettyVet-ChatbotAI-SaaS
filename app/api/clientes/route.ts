@@ -1,26 +1,16 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
-import { apiKey } from "@/lib/seguridad/apiKey";
+import { exigirApiKey } from "@/lib/seguridad/exigirApiKey";
 const clienteSchema = z.object({
   clinicaId: z.string().trim().min(1, "La clinica es obligatoria"),
   telefono: z.string().trim().min(1, "El telefono es obligatorio"),
   nombre: z.string().trim().min(1).optional(),
 });
-const API_KEY_INTERNAL = process.env.API_KEY_INTERNAL;
 type Cliente = z.infer<typeof clienteSchema>;
 export async function POST(r: Request) {
-  const apiKeyRecibida = r.headers.get("x-api-key");
-  // apiKey() ya devuelve false si falta alguna de las dos claves
-  if (!apiKey({ claveRecibida: apiKeyRecibida, claveReal: API_KEY_INTERNAL })) {
-    return Response.json(
-      {
-        success: false,
-        message: "Acceso no autorizado.",
-      },
-      { status: 401 },
-    );
-  }
+  const rechazarEntrada = exigirApiKey(r);
+  if(rechazarEntrada) return rechazarEntrada;
   try {
     const b = await r.json();
     const resultado = clienteSchema.safeParse(b);

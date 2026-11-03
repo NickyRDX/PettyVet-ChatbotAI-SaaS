@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
+import { exigirApiKey } from "@/lib/seguridad/exigirApiKey";
 // const schema = z.object({
 //   clinicaId: z.string().trim().min(1),
 //   clienteId: z.string().trim().min(1),
@@ -133,6 +134,8 @@ type SchemaConversacion = z.infer<typeof schema>;
 // ---------------------------------------------------------
 
 export async function POST(req: Request) {
+  const rechazarEntrada = exigirApiKey(req);
+  if(rechazarEntrada) return rechazarEntrada;
   try {
     // -----------------------------------------------------
     // 4. LEER EL BODY

@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db/prisma";
+import { exigirApiKey } from "@/lib/seguridad/exigirApiKey";
 export async function GET(r: Request, { params }: { params: Promise<{ id: string}> }) {
-  console.log(r)
+  const rechazarEntrada = exigirApiKey(r);
+  if(rechazarEntrada) return rechazarEntrada;
   try {
     const { id } = await params;
     // console.log("nombre del params: ", nombre)
