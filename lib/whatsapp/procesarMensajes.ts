@@ -247,10 +247,11 @@ export async function procesarMensajes({
         estado: "RESPONDIDO",
       },
     });
-    console.log("mensajeSalida: ", mensajeSalida);
+    // F2: solo ids; el objeto completo trae el texto de la conversación (dato personal).
+    console.log("mensajeSalida guardado, id:", mensajeSalida.id, "wamid:", mensajeSalida.wamid);
     return true;
   } catch (e: unknown) {
-    console.error("Error al procesar los mensajes", e);
+    console.error("Error al procesar los mensajes:", detalleSeguro(e));
     if (
       e instanceof Prisma.PrismaClientKnownRequestError &&
       e.code === "P2002"
@@ -270,8 +271,18 @@ export async function procesarMensajes({
         });
       }
     } catch (error: unknown) {
-      console.error("Error al actualizar el estado del mensaje", error);
+      console.error("Error al actualizar el estado del mensaje:", detalleSeguro(error));
     }
     return false;
   }
+}
+
+// F2: devuelve un detalle del error apto para logs, sin datos personales.
+// Los errores de Prisma pueden traer dentro los datos que se intentaban guardar
+// (texto del cliente, teléfono), por eso de ellos solo se informa el código.
+function detalleSeguro(e: unknown): string {
+  if (e instanceof Prisma.PrismaClientKnownRequestError) return `Prisma ${e.code}`;
+  if (e instanceof Prisma.PrismaClientValidationError) return "Prisma validación (datos omitidos)";
+  if (e instanceof Error) return e.message;
+  return "error desconocido";
 }
