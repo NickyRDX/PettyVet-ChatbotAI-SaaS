@@ -24,7 +24,7 @@ function createPrismaClient() {
   }
 
   // Conecta Prisma con PostgreSQL a través del adaptador y el driver `pg`.
-  const adapter = new PrismaPg({ connectionString })
+  const adapter = new PrismaPg({ connectionString, max: 5 })
   return new PrismaClient({ adapter })
 }
 
