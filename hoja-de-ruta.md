@@ -1,6 +1,6 @@
 # 🗺️ Hoja de ruta PettyVet: de "funciona" a "listo para clientes"
 
-> Última actualización: 2026-10-28.
+> Última actualización: 2026-11-04.
 > Esta hoja reemplaza el orden de las guías anteriores. Las equivalencias están en la sección 7.
 > **Regla del curso:** el código lo escribe el alumno. La IA explica, da pistas y revisa.
 > **Meta del alumno:** además de dejar PettyVet listo para vender, aprender ingeniería de software de verdad: arquitectura, patrones de diseño, una API REST robusta y segura (no un CRUD básico), rendimiento, leer código y traducirlo a lenguaje humano. Es también preparación para el mercado laboral junior argentino.
@@ -21,7 +21,10 @@
 
 **Leyenda de estados:** ✅ hecho · 🔄 en curso · ⬜ pendiente · ⚠️ hecho pero sin comprobar en producción
 
-**📍 Estado actual (2026-10-24):**
+**📍 Estado actual (2026-11-04):**
+- **✅ FASE E COMPLETA (2026-11-04), rama `fase-e-vercel` fusionada a `main`:** E1 (`after()` en el webhook), E2 (pool `max: 5`), E3 (variables de Vercel), E4 (logs), E5 (prueba de carga) y E6 (flujo de despliegue). Probada en producción con un mensaje real de WhatsApp. ⚠️ Los mensajes `FALLIDO` ya no se recuperan solos (opción A de E1; pendiente una opción C: reprocesarlos).
+- **✅ FASE F COMPLETA (2026-11-03), fusionada a `main` (merge `e9013bc`):** F1 (rutas internas protegidas con `exigirApiKey`; `simulate/*` borradas), F2 (logs sin datos personales) y F3 (historial de Git sin secretos). Probado en producción con dos celulares. F3 confirmada: el alumno nunca mostró una clave fuera de su PC, no hay nada que rotar.
+- **Fases completas: A, B, C, E y F.** D en curso (D2 ✅, D4 ✅; D1 pospuesta, D3 pendiente). Siguiente: a definir (bloque de producto, Fase I, o D1/D3).
 - Fase A escrita y desplegada (rama `medir-tokens`, commit 448cadb). Prueba del 23/10 en producción: un mensaje respondido en pocos segundos, 0 tokens de razonamiento, sin reintentos. Falta ver el jitter y el corte por tiempo con fallas reales de Gemini.
 - **✅ C1 hecho y verificado (2026-10-26):** usuario del sistema `pettyvet-bot`, token con caducidad "Nunca" cargado en Vercel (Production). El Access Token Debugger de Meta confirma Tipo System User, Caducidad Nunca y Válido.
 - **B1 escrito (2026-10-25):** enum `EstadoMensaje` y campo `estado` aplicados en Supabase; el entrante nace `RECIBIDO`, pasa a `RESPONDIDO` tras enviar (probado en producción) y a `FALLIDO` en el `catch` (sin probar). **B2 escrito** (duplicado = 200, falta probar) y **B4 hecho (2026-10-26)**: `text` opcional en Zod y tipos, `case "text"` protegido, y audio u otros tipos reciben un aviso fijo y 200 (probado con un audio real). **✅ FASE B COMPLETA (2026-10-26): B1, B2, B3 y B4 hechas, probadas en producción (texto, audio y base de datos) y fusionadas a `main`.** **✅ FASE C COMPLETA (2026-10-26): C1, C2 y C3 hechas y fusionadas a `main` (merge 9a3f2ce).** **✅ D2 hecha (2026-10-28):** límite de 15 mensajes ENTRANTES por conversación en 24 horas, probado en WhatsApp y en la base; fusionada a `main` (merge 84be8fa). **Siguiente: F1** (proteger las rutas sin autenticación); D1 sigue pospuesta. Decisión del alumno: el enum `EstadoMensaje` tiene además el valor `GENERADO` (ya aplicado en la base, todavía sin usar en el código; falta definir cuándo se usa).
@@ -86,13 +89,13 @@ En Next.js **la ruta de carpetas es la URL**. Por eso hay muchos archivos con el
 | Archivo | URL | Quién lo llama | ¿Lo tocamos? |
 |---|---|---|---|
 | `app/api/webhooks/whatsapp/route.ts` | `/api/webhooks/whatsapp` | **Meta** | ✅ Casi todas las tareas |
-| `app/api/simulate/inbound/route.ts` | `/api/simulate/inbound` | Vos (pruebas) | Fase F: proteger o quitar |
-| `app/api/simulate/conversation/route.ts` | `/api/simulate/conversation` | Vos (pruebas) | Fase F |
-| `app/api/clientes/route.ts` | `/api/clientes` | Administración | Fase F |
-| `app/api/mensajes/route.ts` | `/api/mensajes` | Administración | Fase F |
-| `app/api/conversacion/route.ts` | `/api/conversacion` | Administración | Fase F |
-| `app/api/clinicas/route.ts` | `/api/clinicas` | Administración | Fase F |
-| `app/api/clinicas/[id]/route.ts` | `/api/clinicas/:id` | Administración | Fase F |
+| ~~`app/api/simulate/inbound/route.ts`~~ | `/api/simulate/inbound` | Vos (pruebas) | ✅ Borrada en la Fase F |
+| ~~`app/api/simulate/conversation/route.ts`~~ | `/api/simulate/conversation` | Vos (pruebas) | ✅ Borrada en la Fase F |
+| `app/api/clientes/route.ts` | `/api/clientes` | Administración | ✅ Protegida (F1) |
+| `app/api/mensajes/route.ts` | `/api/mensajes` | Administración | ✅ Protegida (F1) |
+| `app/api/conversacion/route.ts` | `/api/conversacion` | Administración | ✅ Protegida (F1) |
+| `app/api/clinicas/route.ts` | `/api/clinicas` | Administración | ✅ Protegida (F1, GET y POST) |
+| `app/api/clinicas/[id]/route.ts` | `/api/clinicas/:id` | Administración | ✅ Protegida (F1) |
 | `app/api/health/db/route.ts` | `/api/health/db` | Chequeo de la base | No |
 
 ### 1.4 Los otros archivos importantes
@@ -142,6 +145,17 @@ En Next.js **la ruta de carpetas es la URL**. Por eso hay muchos archivos con el
 - [x] C1 (parte de Meta): usuario del sistema `pettyvet-bot`, token con caducidad "Nunca" cargado en Vercel y redesplegado (2026-10-24)
 - [x] C1 verificado (2026-10-26) en el Access Token Debugger: Tipo System User, Caducidad Nunca, Válido, ámbitos `whatsapp_business_management` y `whatsapp_business_messaging`
 - [x] D2: `superoLimiteMensajes` (`lib/limites/clientes.ts`) con `LIMITE_MENSAJES = 15` en una ventana de 24 h; el entrante bloqueado queda `LIMITADO` y Meta recibe 200 sin llamar a Gemini (2026-10-28)
+- [x] D4: aviso único al llegar al límite (`yaSeAvisoLimite`), fusionada a `main` y desplegada (2026-10-28)
+- [x] F1: `lib/seguridad/apiKey.ts` (compara con `timingSafeEqual`) y `lib/seguridad/exigirApiKey.ts` (devuelve `Response` 401 o `null`) en la primera línea de cada handler interno; rutas `simulate/*` borradas. Probado: sin clave 401, clave mala 401, clave buena pasa (2026-11-03)
+- [x] F2: `procesarMensajes.ts` ya no loguea el texto de la conversación (solo `id` y `wamid`) y los errores pasan por `detalleSeguro` (de los errores de Prisma solo se informa el código) (2026-11-03)
+- [x] F3: historial completo de Git revisado: sin `.env`, sin claves de Gemini, Meta ni Supabase, sin `NEXT_PUBLIC_` con secretos (2026-11-03). El alumno confirmó que nunca mostró una clave fuera de su PC: nada que rotar
+- [x] Fase F fusionada a `main` (merge `e9013bc`, 2026-11-03)
+- [x] E1: el webhook responde 200 a Meta y procesa los mensajes dentro de `after()` (`app/api/webhooks/whatsapp/route.ts`, commit `8967652`). Probado en producción con un mensaje real (2026-11-04)
+- [x] E2: `new PrismaPg({ connectionString, max: 5 })` en `lib/db/prisma.ts` (commit `e55c0fa`, merge `1b9590c`). Probado en producción (2026-11-04)
+- [x] E3: las 7 variables de entorno están cargadas en Vercel (Production y Preview) (2026-11-04)
+- [x] E4: sabe leer los logs de Vercel por palabra fija (`Tokens de entrada`, `mensajeSalida guardado`) (2026-11-04)
+- [x] E5: prueba de carga contra `/api/health/db` en producción: 10, 50 y 100 conexiones, 7.623 pedidos, 0 errores (2026-11-04)
+- [x] E6: se mantiene `vercel --prod` desde la PC, con checklist previo (decisión del alumno, 2026-11-04)
 
 ---
 
@@ -153,13 +167,13 @@ En Next.js **la ruta de carpetas es la URL**. Por eso hay muchos archivos con el
 | **B** | 🔴 | ✅ **COMPLETA** (2026-10-26) | Mensajes que se pierden o se reintentan sin fin | B1 ✅, B2 ✅, B4 ✅, B3 ✅. Desplegada y probada en producción (texto, audio y base de datos OK). Fusionada a `main`. Pendiente de pruebas automáticas (H3): FALLIDO, duplicado reenviado y evento con 2 mensajes |
 | **C** | 🔴 | ✅ **COMPLETA** (2026-10-26) | La conexión con WhatsApp se puede caer | C1 ✅ (verificada), C2 ✅ (log quitado; regla del 9 a revisar con un número real), C3 ✅ (código de error de Meta; falta desplegar y ver un error real) |
 | **D** | 🟠 | 🔄 | Proteger tu plata | D1 ⏸, D2 ✅ (2026-10-28), D3 ⬜, D4 ✅ escrito (2026-10-28, falta probar) |
-| **E** | 🟠 | ⬜ | Vercel y servidor bajo carga | E1 a E6 ⬜ |
-| **F** | 🟠 | ⬜ | Seguridad del resto de la API | F1 ⬜, F2 ⬜, F3 ⬜ |
+| **E** | 🟠 | ✅ **COMPLETA** (2026-11-04) | Vercel y servidor bajo carga | E1 ✅, E2 ✅, E3 ✅, E4 ✅, E5 ✅ (solo `health/db`; falta un modo de prueba para el webhook), E6 ✅. Fusionada a `main` |
+| **F** | 🟠 | ✅ **COMPLETA** (2026-11-03) | Seguridad del resto de la API | F1 ✅, F2 ✅, F3 ✅. Fusionada a `main` |
 | **G** | 🟡 | ⬜ | Calidad del bot | G1 ⬜, G2 ⬜, G3 ⬜ |
 | **H** | 🟡 | ⬜ | Orden y calidad del proyecto | H1 ⬜, H2 ⬜, H3 ⬜ |
 | **I** | ⚪ | ⬜ | Producto | Ver la página principal en Notion |
 
-**Fases completas: 3 de 9 (A, B y C).** Fase D en curso: D2 hecha; D1 pospuesta hasta antes de vender; D3 y D4 más adelante. Siguiente: F1 (proteger rutas). Además: firma del webhook, error 500 sin detalle, mediciones de costo y G4 (nombre del cliente).
+**Fases completas: 5 de 9 (A, B, C, E y F).** Fase D en curso: D2 y D4 hechas; D1 pospuesta hasta antes de vender; D3 pendiente. Siguiente: a definir (el bloque de producto de la Fase I, o D1/D3). Además: firma del webhook, error 500 sin detalle, mediciones de costo y G4 (nombre del cliente).
 
 ---
 
@@ -321,37 +335,39 @@ En Next.js **la ruta de carpetas es la URL**. Por eso hay muchos archivos con el
 
 ---
 
-### 🟠 FASE E: Vercel y el servidor
+### 🟠 FASE E: Vercel y el servidor ✅ COMPLETA (2026-11-04)
 
-#### E1 · Responder rápido con `after()`
-- [ ] Hecho (**solo después de la Fase B**)
+#### E1 · Responder rápido con `after()` ✅ (hecho el 2026-11-04)
+- [x] Hecho. Commit `8967652`. La firma, la validación y la búsqueda de la clínica quedan antes del 200; `procesarMensajes` corre dentro de `after()`. La respuesta final es siempre 200 ("Evento recibido") y, si algún mensaje falla, solo se escribe un `console.error` fijo. Probado en producción con un mensaje real.
+- ⚠️ Costo aceptado (opción A): con el 200 ya enviado, Meta no reintenta; un mensaje que falla queda `FALLIDO` y no se recupera solo. Pendiente futuro (opción C): un proceso que reprocese los `FALLIDO`.
+- 🧠 Conceptos: *acknowledge fast, process async*, entrega al menos una vez, trade-offs de los reintentos.
 - 🎯 Que Meta reciba el 200 enseguida y el trabajo pesado siga después.
 - 📁 `route.ts`. Documentación de tu versión: `node_modules/next/dist/docs/01-app/03-api-reference/04-functions/after.md` y `.../02-route-segment-config/maxDuration.md`.
 - 🧠 `after` se importa de `next/server`, corre después de enviar la respuesta y **usa el mismo tiempo máximo** de la ruta. Tu límite actual en Vercel es de 5 minutos.
 - ⚠️ Si respondés 200 antes de procesar y el trabajo falla, **nadie reintenta**. Por eso depende de B1 y B2.
 
-#### E2 · Conexiones a la base
-- [ ] Hecho
+#### E2 · Conexiones a la base ✅ (hecho el 2026-11-04)
+- [x] Hecho. `max: 5` por instancia (commit `e55c0fa`). El `DATABASE_URL` de Vercel es el mismo que el local y apunta al pooler de Supabase (puerto 6543). Región de las funciones: iad1 (Washington); la base está en Canadá (ca-central-1).
 - 📁 `lib/db/prisma.ts` (hoy `new PrismaPg({ connectionString })` sin opciones).
 - 🧠 Cada ejecución de Vercel abre su propio grupo de conexiones. Con mucha gente a la vez se agotan.
 - 🔎 Investigá: "Supabase connection pooling Supavisor", "Prisma adapter-pg pool max".
 - ✅ Listo cuando: sabés si tu `DATABASE_URL` usa el pooler y el pool de cada instancia es chico.
 
-#### E3 · Variables de entorno en Vercel
-- [ ] Hecho
+#### E3 · Variables de entorno en Vercel ✅ (hecho el 2026-11-04)
+- [x] Hecho. Confirmadas en Vercel: `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_API_VERSION`, `WHATSAPP_PHONE_NUMBER_ID`, `GEMINI_API_KEY`, `DATABASE_URL`, `DIRECT_URL` y `API_KEY_INTERNAL`. Pendientes de revisar: marcar las claves como *Sensitive* ("Needs Attention") y separar los valores de Preview.
 - 🧠 Las variables se configuran **por entorno** (Production, Preview, Development) y un cambio **no afecta a deploys ya hechos**: hay que redeployar.
 - ✅ Checklist en Production: `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_API_VERSION`, `GEMINI_API_KEY`, `DATABASE_URL`.
 
-#### E4 · Ver qué pasa en producción
-- [ ] Hecho
+#### E4 · Ver qué pasa en producción ✅ (hecho el 2026-11-04)
+- [x] Hecho. Palabras fijas en los logs: `Tokens de entrada`, `Token Razonamiento`, `mensajeSalida guardado`.
 - 🧠 Los logs de Vercel son tu única visibilidad. Buscá siempre por una palabra fija (`Tokens de entrada`, `Reintento:`). Revisalos después de cada cambio.
 
-#### E5 · Prueba de carga
-- [ ] Hecho
+#### E5 · Prueba de carga ✅ (hecho el 2026-11-04)
+- [x] Hecho (alcance reducido). Con `autocannon` contra `/api/health/db` en producción: 10, 50 y 100 conexiones simultáneas, 10 s cada una, 7.623 pedidos, **0 errores**, p50 ≈ 200 ms, p99 ≈ 513 ms (1671 ms en la primera por arranque en frío), hasta 488 pedidos/s. No se probó el webhook completo (gastaría Gemini y escribiría en la base real): queda como mejora un modo de prueba. El cuello de botella real es Gemini (5 pedidos/min en el nivel gratuito), no Vercel ni la base.
 - 🧠 Nunca contra el Gemini real (gasta plata): hace falta un modo de prueba que devuelva un texto fijo con una espera artificial. Medí cuántos dan 200 y el percentil 95 de tiempo, con 10, 50, 100 y 300 pedidos.
 
-#### E6 · Ordenar el flujo de despliegue
-- [ ] Hecho
+#### E6 · Ordenar el flujo de despliegue ✅ (decidido el 2026-11-04)
+- [x] Hecho. Decisión del alumno: Vercel **no** se conecta a GitHub; se despliega a mano con `vercel --prod`. Rutina: (1) rama correcta, (2) `git status` sin cambios sueltos, (3) `tsc --noEmit` sin errores, (4) commit y push, (5) `vercel --prod`, (6) mensaje de prueba por WhatsApp y mirar los logs. Para volver atrás: Deployments → Promote to Production.
 - 🎯 Que lo que está en producción sea siempre algo que está guardado y probado.
 - 🧠 Hoy desplegás con `vercel --prod` desde tu carpeta: **sube los archivos que tenés en disco en ese momento** (de la rama que tengas activa y también los cambios sin commitear). GitHub no despliega nada: solo guarda el historial.
 - ✅ Checklist antes de cada `vercel --prod`: (1) `git status` sin cambios sueltos; (2) `./node_modules/.bin/tsc --noEmit` sin errores; (3) estás en la rama que querés publicar; (4) commit y push hechos.
@@ -360,20 +376,22 @@ En Next.js **la ruta de carpetas es la URL**. Por eso hay muchos archivos con el
 
 ---
 
-### 🟠 FASE F: Seguridad del resto de la app
+### 🟠 FASE F: Seguridad del resto de la app ✅ COMPLETA (2026-11-03)
 
-#### F1 · Proteger o quitar rutas sin autenticación
-- [ ] Hecho
+#### F1 · Proteger o quitar rutas sin autenticación ✅ (hecho el 2026-11-03)
+- [x] Hecho. Commits `aa970cc`, `cbbefee` y `723609e`; fusionada a `main`. Variable `API_KEY_INTERNAL` (en `.env` y en Vercel), header `x-api-key`, 401 si falta o es incorrecta, fail closed si la variable no existe. `health/db` queda pública a propósito y el webhook sigue con su firma.
+- 🧠 Conceptos: autenticación vs. autorización, fail closed, comparación en tiempo constante, guard clause.
+- ⚠️ La clave es una solución temporal: cuando existan cuentas de usuario (Fase I) se reemplaza por sesión y permisos por clínica. Pendiente menor: `clinicas/[id]` devuelve 400 (no 404) y `error: e` crudo.
 - 📁 Todos los `route.ts` de la tabla 1.3 menos el webhook y `health`.
 - 🧠 Hoy cualquiera con la URL puede leer y escribir clientes, mensajes y clínicas, y las rutas `simulate/` pueden crear mensajes falsos.
 - ✅ Listo cuando: sin credenciales, esas rutas responden 401, o ya no existen en producción.
 
-#### F2 · Logs con datos personales
-- [ ] Hecho
+#### F2 · Logs con datos personales ✅ (hecho el 2026-11-03)
+- [x] Hecho. Commit `225ee18`: la línea que imprimía `mensajeSalida` completo ahora imprime solo `id` y `wamid`, y los `console.error` de `procesarMensajes.ts` usan `detalleSeguro(e)`. Verificado en los logs de Vercel (2026-11-03): tras un mensaje real solo aparecen `id`, `wamid` y tokens, sin el texto de la conversación.
 - 📁 `route.ts` (`console.log("mensajeSalida: ", ...)` imprime el texto de la conversación) y `app/api/clinicas/[id]/route.ts` (según tu página de Notion imprime el `Request` completo).
 
-#### F3 · Claves
-- [ ] Hecho
+#### F3 · Claves ✅ (hecho el 2026-11-03)
+- [x] Hecho. Búsqueda en todo el historial de Git (todas las ramas): sin `.env`, sin claves de Gemini, Meta ni Supabase. El alumno confirmó que nunca mostró una clave fuera de su PC, así que no hubo que rotar nada. Si en el futuro se expone una, rotarla (nuevo valor en `.env` y Vercel, y redeploy).
 - 🧠 `.env` ya está ignorado por git ✅. Si alguna clave se mostró en un chat o captura, generá una nueva.
 
 ---
@@ -417,8 +435,10 @@ Agenda y citas, autenticación y multi-clínica, panel de administración, ficha
     ── ✅ FASE C COMPLETA (2026-10-26), fusionada a main (merge 9a3f2ce) ──
 11. D1  Nivel pagado con tope de gasto             ⏸ POSPUESTA (hacerla ANTES de vender; no hay presupuesto ahora)
 12. D2  Límite por cliente                         ✅ hecho y probado (2026-10-28)
-13. F1  Proteger rutas                             ← AHORA
-14. E1, E2, E3, E5  Vercel y carga
+13. F1, F2 y F3  Seguridad de la API              ✅ hechas (2026-11-03)
+    ── ✅ FASE F COMPLETA (2026-11-03), fusionada a main (merge e9013bc) ──
+14. E1 a E6  Vercel y carga                        ✅ hechas (2026-11-04)
+    ── ✅ FASE E COMPLETA (2026-11-04) ──  ← SIGUIENTE: a definir (Fase I, o D1/D3)
 15. D3 y D4  Cuota por clínica y avisos
 16. G, H, I
 ```
@@ -476,6 +496,8 @@ Agenda y citas, autenticación y multi-clínica, panel de administración, ficha
 
 | Fecha | IA | Qué se hizo | Qué sigue |
 |---|---|---|---|
+| 2026-11-04 | Claude | **FASE E COMPLETA.** E1 (`after()`, commit `8967652`), E2 (`max: 5`, commit `e55c0fa`), E3, E4, E5 (7.623 pedidos a `health/db`, 0 errores) y E6 (se mantiene `vercel --prod`). Probado en producción con un mensaje real. Rama `fase-e-vercel` fusionada a `main` | Decidir: Fase I (cuentas, planes, Mercado Pago), D1 (Gemini pagado) o D3. Pendiente futuro: reprocesar los `FALLIDO` y un modo de prueba para el webhook |
+| 2026-11-03 | Claude | **FASE F COMPLETA y fusionada a `main`** (merge `e9013bc`). F1: `exigirApiKey` en las 6 rutas internas, `simulate/*` borradas, probado en producción con dos celulares. F2: logs sin texto de conversaciones. F3: historial de Git sin secretos. Se dejó la visión de producto (cuentas, planes, Mercado Pago, panel) para la Fase I | Decidir entre E y la Fase I; definir cuántos planes y si la prueba pide tarjeta |
 | 2026-10-28 | Claude | **D4 subida y fusionada a `main`** (commit `bf5ef90`, merge de `fase-d-aviso-limite`). Límite final en 15 | Desplegar con el checklist E6 (`vercel --prod`); después F1 en rama nueva |
 | 2026-10-28 | Claude | **D4 escrito** (aviso único al llegar al límite) en la rama `fase-d-aviso-limite`, commit local sin push. Delegado por el alumno | Probar con el límite en 2 (3 mensajes: aviso una vez; 4.º en silencio), volver a 15, push y fusionar; después F1 |
 | 2026-10-28 | Claude | **D2 hecha y probada** (WhatsApp y base): `superoLimiteMensajes` con límite 15 en 24 h; el entrante bloqueado queda `LIMITADO`. Commits `0061fae` y `6cd22ad` (formato aparte), **fusionada a `main`** (merge `84be8fa`). La Fase C ya estaba en `main` (se corrigió la hoja). Pendiente de diseño: `LIMITADO` cuenta en la ventana | F1 (proteger rutas); crear rama nueva (ej. `fase-f-seguridad`) |
