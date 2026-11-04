@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { firmarMensaje } from "@/lib/whatsapp/firma";
 import { procesarMensajes } from "@/lib/whatsapp/procesarMensajes";
+import { after } from "next/server";
 
 export async function GET(req: Request) {
   // 1. Obtenemos los parámetros que vienen en la URL
@@ -150,22 +151,19 @@ export async function POST(req: Request) {
         mensaje: mensaje,
       }),
     );
-    const mensajesProcesados = await Promise.all(promesas);
-    if (mensajesProcesados.every((m) => m === true)) {
-      return Response.json(
-        {
-          success: true,
-          message: "Mensajes procesados correctamente",
-        },
-        { status: 200 },
-      );
-    }
+    after(async () => {
+      const mensajesProcesados = await Promise.all(promesas);
+      if (!mensajesProcesados.every((m) => m === true)) {
+        // Meta ya recibió el 200: un fallo acá no se reintenta solo (el mensaje queda FALLIDO en la base).
+        console.error("Algún mensaje del evento no se pudo procesar");
+      }
+    });
     return Response.json(
       {
-        success: false,
-        message: "Error al procesar el webhook de WhatsApp",
+        success: true,
+        message: "Evento recibido",
       },
-      { status: 500 },
+      { status: 200 },
     );
   } catch (e: unknown) {
     console.error("Error al procesar el webhook de WhatsApp", e);
