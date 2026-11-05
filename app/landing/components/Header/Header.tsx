@@ -51,7 +51,7 @@ export default function Header() {
           ))}
         </nav>
         <div className="flex items-center gap-3">
-          <Link href="#">
+          <Link href="/registro">
             <Button className="flex items-center gap-1.5 cursor-pointer text-sm px-3 py-5 rounded-full bg-[#10B981] border-none hover:bg-[#14B8A6] transition-colors duration-300">
               Prueba
               <Image src="/flecha.svg" alt="flecha" width={18} height={18} />
