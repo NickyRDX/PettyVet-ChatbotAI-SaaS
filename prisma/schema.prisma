@@ -51,6 +51,22 @@ enum EstadoMensaje {
   @@map("estado_mensaje")
 }
 
+enum PlanClinica {
+  CONSULTORIO
+  CLINICA
+
+  @@map("plan_clinica")
+}
+
+enum EstadoSuscripcion {
+  PRUEBA
+  ACTIVA
+  PAGO_PENDIENTE
+  CANCELADA
+
+  @@map("estado_suscripcion")
+}
+
 model Clinica {
   id                    String   @id @default(cuid())
   nombre                String
@@ -58,6 +74,11 @@ model Clinica {
   duracionTurnoMinutos  Int      @default(30) @map("duracion_turno_minutos")
   telefonoWhatsapp      String?  @map("telefono_whatsapp")
   metaPhoneNumberId     String?  @unique @map("meta_phone_number_id")
+  ownerId               String?  @unique @map("owner_id")
+  plan                  PlanClinica @default(CONSULTORIO)
+  estadoSuscripcion     EstadoSuscripcion @default(PRUEBA) @map("estado_suscripcion")
+  pruebaTerminaEn       DateTime? @map("prueba_termina_en") @db.Timestamptz
+  mpSuscripcionId       String?  @unique @map("mp_suscripcion_id")
   createdAt             DateTime @default(now()) @map("creado_en") @db.Timestamptz
   updatedAt             DateTime @updatedAt @map("actualizado_en") @db.Timestamptz
 
