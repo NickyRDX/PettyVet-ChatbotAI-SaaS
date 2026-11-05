@@ -18,6 +18,8 @@
     "@gsap/react": "^2.1.2",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.118.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
     "dotenv": "^17.4.2",
