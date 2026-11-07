@@ -417,6 +417,14 @@ En Next.js **la ruta de carpetas es la URL**. Por eso hay muchos archivos con el
 
 Agenda y citas, autenticación y multi-clínica, panel de administración, fichas clínicas, recordatorios, planes y precios. El detalle está en la página principal del proyecto en Notion (módulos 5 y 6).
 
+**🔄 En curso (2026-11-06), rama `fase-i-producto`.** Decisiones: lanzar con 2 planes (Consultorio $39.999 y Clínica $79.999; Sedes queda "próximamente"); prueba de 7 días **con tarjeta** (Mercado Pago); registro por **Server Action** + Supabase Auth.
+- [x] **Datos:** `Clinica` con `ownerId`, `plan` (`PlanClinica`), `estadoSuscripcion` (`EstadoSuscripcion`), `pruebaTerminaEn` y `mpSuscripcionId`; aplicado a Supabase (commit `09cf4e4`).
+- [x] **I1 (parte 1):** clientes de Supabase (`lib/supabase/client.ts` y `server.ts`), `actions/registro.ts` y página `/registro` (commits `193c7fd` y `9d679f1`). Probada la validación en el navegador; falta probar un registro real.
+- [ ] **I1 (parte 2):** ruta `/auth/confirm` que reciba el link del email (plantilla "Confirm signup" con `token_hash`), página de login y `proxy` que renueva la sesión y protege páginas.
+- [ ] I2 formulario de alta de la clínica · I3 suscripción con prueba (Mercado Pago) · I4 acceso según plan · I5 panel · I6 número de WhatsApp por clínica.
+- ⚠️ **DEUDA DE SEGURIDAD (2026-11-06):** en Supabase (proyecto `main`, PRODUCTION) se apagó **"Confirm email"** solo para avanzar con el desarrollo. **Antes de lanzar hay que volver a prenderlo** y terminar la ruta `/auth/confirm`; si no, cualquiera puede registrarse con un email ajeno.
+- ⚠️ Antes de desplegar `/registro`: cargar `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` en Vercel.
+
 ---
 
 ## 6. Orden de trabajo recomendado
