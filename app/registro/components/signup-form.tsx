@@ -1,6 +1,7 @@
 // Este archivo usa un hook (useActionState), por eso tiene que ser un Client Component.
 "use client";
 
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,6 @@ export default function SignupForm({
   // pendiente: true mientras el servidor está procesando el envío.
   // El orden es fijo: los arreglos se desestructuran por posición, no por nombre.
   const [estado, action, pendiente] = useActionState(register, { ok: false });
-
   return (
     // Al enviar, React llama a action con los datos del formulario (FormData).
     <form
@@ -82,7 +82,7 @@ export default function SignupForm({
           {/* Solo aparece cuando register devolvió { ok: true }. */}
           {estado.ok && (
             <p className="text-sm text-primary">
-              Revisá tu email para confirmar tu cuenta.
+              Listo! Cuenta creada correctamente.
             </p>
           )}
           {/* disabled evita enviar dos veces mientras el servidor trabaja. */}
@@ -93,6 +93,13 @@ export default function SignupForm({
           >
             {pendiente ? <Spinner className="w-4 h-4" /> : "Crear Cuenta"}
           </Button>
+          {/* Camino para quien ya tiene cuenta. */}
+          <FieldDescription className="text-center">
+            ¿Ya tenés cuenta?{" "}
+            <Link href="/login" className="underline underline-offset-4">
+              Iniciá sesión
+            </Link>
+          </FieldDescription>
         </Field>
       </FieldGroup>
     </form>
